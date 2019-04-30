@@ -16,10 +16,20 @@ float centerOfMassY;
  */
 void skeletonCallback(const body_tracker_msgs::Skeleton::ConstPtr& msg)
 {
-    bodyId = msg->body_id;
-    numberOfGestures = msg->gesture;
-    distanceCenterOfMass = msg->centerOfMass.x;
-    centerOfMassY = msg->centerOfMass.y;
+
+    // TODO: select new ID when gesture is done for at least 3 seconds
+    if (msg->gesture == 2) {
+        bodyId = msg->body_id;
+
+        // DEBUG
+        ROS_INFO("bodyId to track: %d", bodyId);
+    }
+
+    if (msg->body_id == bodyId) {
+        numberOfGestures = msg->gesture;
+        distanceCenterOfMass = msg->centerOfMass.x;
+        centerOfMassY = msg->centerOfMass.y;
+    }
 }
 
 
@@ -55,11 +65,10 @@ int main(int argc, char** argv)
         // publish velocity command for rotation
         pub.publish(msg);
 
-        // FIXME: ugly.
-        msg.angular.z = 0;
-
         if (bodyId != 0 && distanceCenterOfMass > 1300)
             msg.linear.x = 0.2;
+        else if (bodyId != 0 && distanceCenterOfMass < 1000 && distanceCenterOfMass > 0)
+            msg.linear.x = -0.2;
 
         // publish velocity command for moving straight
         pub.publish(msg);
