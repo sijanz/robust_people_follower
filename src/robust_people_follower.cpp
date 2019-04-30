@@ -73,8 +73,6 @@ int main(int argc, char** argv)
         // publish velocity command for moving straight
         pub.publish(msg);
 
-        // TODO: move backwards if person is too close
-
         ros::spinOnce();
         loop_rate.sleep();
     }
