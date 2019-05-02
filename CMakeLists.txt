@@ -202,3 +202,4 @@ include_directories(
 
 add_executable(robust_people_follower src/robust_people_follower.cpp)
 target_link_libraries(robust_people_follower ${catkin_LIBRARIES})
+add_compile_options(-std=c++11)

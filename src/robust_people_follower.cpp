@@ -1,6 +1,7 @@
 #include <ros/ros.h>
 #include <body_tracker_msgs/Skeleton.h>
 #include <geometry_msgs/Twist.h>
+#include <stdlib.h>
 
 
 // FIXME: now that's ugly (supports only one person anyway). DEPRECATED - substitute with new data structure!
@@ -52,12 +53,15 @@ struct SkeletonInfo
 class Turtlebot
 {
 public:
-    Position2D position;
-    Pose pose;
+    Position2D position{};
+    Pose pose{};
 
 
-    Turtlebot(Position2D position, Pose pose) : position(position), pose(pose)
-    {};
+    Turtlebot()
+    {
+        position.x = position.y = 0;
+        pose.x = pose.y = pose.z = pose.w = 0;
+    }
 };
 
 
@@ -67,20 +71,24 @@ public:
 class Person
 {
 public:
-    SkeletonInfo skeleton;
-    Position2D position;
-    Pose pose;
+    SkeletonInfo skeleton{};
+    Position2D position{};
+    Pose pose{};
     double velocity;
 
 
-    // TODO: calculate other members via odometry data
-    Person(SkeletonInfo skeleton) : skeleton(skeleton)
-    {};
+    Person()
+    {
+        skeleton.bodyId = skeleton.numberOfGestures = 0;
+        skeleton.centerOfMassY = skeleton.distanceCenterOfMass = 0;
+        position.x = position.y = 0;
+        pose.x = pose.y = pose.z = pose.w = 0;
+        velocity = 0;
+    }
 };
 
 
-// list of persons in the frame
-std::list<Person> trackedPersons;
+void debugPrintout(const Turtlebot &turtlebot, const std::list<Person> &trackedPersons, const Person &target);
 
 
 /**
@@ -115,13 +123,18 @@ int main(int argc, char **argv)
 
     ros::Rate loop_rate(10);
 
+    // instance of the turtlebot robot
+    Turtlebot turtlebot;
+
+    // list of persons in the frame
+    std::list<Person> trackedPersons;
+
+    // instance of target
+    Person target;
+
     while (ros::ok()) {
 
-        // DEBUG
-        ROS_INFO("body id: %d", bodyId);
-        ROS_INFO("number of gestures: %d", numberOfGestures);
-        ROS_INFO("distance to center of mass: %f", distanceCenterOfMass);
-        ROS_INFO("y-deviation of center of mass: %f\n", centerOfMassY);
+        debugPrintout(turtlebot, trackedPersons, target);
 
         // message to store velocity commands in
         geometry_msgs::Twist msg;
@@ -150,4 +163,35 @@ int main(int argc, char **argv)
         loop_rate.sleep();
     }
     return 0;
+}
+
+
+void debugPrintout(const Turtlebot &turtlebot, const std::list<Person> &trackedPersons, const Person &target)
+{
+    system("clear");
+
+    ROS_INFO("Turtlebot info:");
+    ROS_INFO("position:");
+    ROS_INFO("  x: %f", turtlebot.position.x);
+    ROS_INFO("  y: %f", turtlebot.position.y);
+    ROS_INFO("pose:");
+    ROS_INFO("  x: %f", turtlebot.pose.x);
+    ROS_INFO("  y: %f", turtlebot.pose.y);
+    ROS_INFO("  z: %f", turtlebot.pose.z);
+    ROS_INFO("  w: %f\n", turtlebot.pose.w);
+
+    ROS_INFO("tracked persons: %lu", trackedPersons.size());
+    if (!trackedPersons.empty()) {
+        for (Person p : trackedPersons) {
+            ROS_INFO("id: %d", p.skeleton.bodyId);
+            ROS_INFO("position:");
+            ROS_INFO("  x: %f", p.position.x);
+            ROS_INFO("  y: %f", p.position.y);
+            ROS_INFO("number of gestures: %d", p.skeleton.numberOfGestures);
+            ROS_INFO("distance: %f", p.skeleton.distanceCenterOfMass);
+            ROS_INFO("y-deviation of center of mass: %f\n", p.skeleton.centerOfMassY);
+        }
+    }
+
+    ROS_INFO("target: %d", target.skeleton.bodyId);
 }
