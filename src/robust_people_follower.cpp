@@ -3,18 +3,91 @@
 #include <geometry_msgs/Twist.h>
 
 
-// FIXME: now that's ugly (supports only one person anyway).
+// FIXME: now that's ugly (supports only one person anyway). DEPRECATED - substitute with new data structure!
 int bodyId;
 int numberOfGestures;
 float distanceCenterOfMass;
 float centerOfMassY;
 
 
+// ### DATA STRUCTURES ###
+
+/**
+ * Stores a position in 2-dimensional space.
+ */
+struct Position2D
+{
+    double x;
+    double y;
+};
+
+
+/**
+ * Store a pose in 2-dimensional space.
+ */
+struct Pose
+{
+    double x;
+    double y;
+    double z;
+    double w;
+};
+
+
+/**
+ * Stores data related to the skeleton info of a person.
+ */
+struct SkeletonInfo
+{
+    int bodyId;
+    int numberOfGestures;
+    float distanceCenterOfMass;
+    float centerOfMassY;
+};
+
+
+/**
+ * Stores data related to the roboter.
+ */
+class Turtlebot
+{
+public:
+    Position2D position;
+    Pose pose;
+
+
+    Turtlebot(Position2D position, Pose pose) : position(position), pose(pose)
+    {};
+};
+
+
+/**
+ * Stores data related to a tracked person.
+ */
+class Person
+{
+public:
+    SkeletonInfo skeleton;
+    Position2D position;
+    Pose pose;
+    double velocity;
+
+
+    // TODO: calculate other members via odometry data
+    Person(SkeletonInfo skeleton) : skeleton(skeleton)
+    {};
+};
+
+
+// list of persons in the frame
+std::list<Person> trackedPersons;
+
+
 /**
  * @brief Sets the global variables to values in the message from the subscribed topic.
  * @param msg the message from the subscribed topic
  */
-void skeletonCallback(const body_tracker_msgs::Skeleton::ConstPtr& msg)
+void skeletonCallback(const body_tracker_msgs::Skeleton::ConstPtr &msg)
 {
 
     // TODO: select new ID when gesture is done for at least 3 seconds
@@ -33,7 +106,7 @@ void skeletonCallback(const body_tracker_msgs::Skeleton::ConstPtr& msg)
 }
 
 
-int main(int argc, char** argv)
+int main(int argc, char **argv)
 {
     ros::init(argc, argv, "body_tracker");
     ros::NodeHandle n;
