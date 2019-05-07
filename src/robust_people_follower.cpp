@@ -5,6 +5,7 @@
 #include <geometry_msgs/Twist.h>
 #include <nav_msgs/Odometry.h>
 #include <nav_msgs/Path.h>
+#include <std_msgs/Float32.h>
 
 #include "turtlebot.h"
 
@@ -49,12 +50,17 @@ int main(int argc, char **argv)
     ros::Subscriber odom_sub = nh.subscribe("/odom", 10, odometryCallback);
     ros::Subscriber skeleton_sub = nh.subscribe("/body_tracker/skeleton", 10, skeletonCallback);
 
-    ros::Publisher velocity_pub = nh.advertise<geometry_msgs::Twist>("/mobile_base/commands/velocity", 1000);
+    ros::Publisher velocity_command_pub = nh.advertise<geometry_msgs::Twist>("/mobile_base/commands/velocity", 1000);
     ros::Publisher path_pub = nh.advertise<nav_msgs::Path>("/path", 1000);
+    ros::Publisher velocity_pub = nh.advertise<std_msgs::Float32>("/velocity", 1000);
 
     ros::Rate loop_rate(10);
 
     while (ros::ok()) {
+
+        ros::spinOnce();
+
+        turtlebot.calculateVelocity();
 
         debugPrintout();
 
@@ -81,7 +87,7 @@ int main(int argc, char **argv)
             msg.angular.z = 0;
 
         // publish velocity command for rotation
-        velocity_pub.publish(msg);
+        velocity_command_pub.publish(msg);
 
         if (target_distance > 1800) {
             msg.linear.x = 0.2;
@@ -92,7 +98,7 @@ int main(int argc, char **argv)
         }
 
         // publish velocity command for moving straight
-        velocity_pub.publish(msg);
+        velocity_command_pub.publish(msg);
 
         // FIXME: throws seg fault if list members get deleted
         if (!tracked_persons.empty()) {
@@ -112,7 +118,11 @@ int main(int argc, char **argv)
         path_pub.publish(robot_path);
         ++seq;
 
-        ros::spinOnce();
+        std_msgs::Float32 turtlebot_velocity;
+        turtlebot_velocity.data = turtlebot.getVelocity();
+        velocity_pub.publish(turtlebot_velocity);
+
+        turtlebot.setOldPose();
         loop_rate.sleep();
     }
     return 0;
@@ -134,13 +144,14 @@ void debugPrintout()
 
     ROS_INFO("list size: %lu\n", tracked_persons.size());
 
+    /*
     if (!tracked_persons.empty()) {
         for (std::vector<Person>::iterator iter = tracked_persons.begin(); iter != tracked_persons.end(); ++iter) {
             if (iter->isTracked()) {
                 iter->printPersonInfo();
             }
         }
-    }
+    } */
 }
 
 
