@@ -6,8 +6,7 @@
 #include <nav_msgs/Odometry.h>
 #include <nav_msgs/Path.h>
 
-#include "turtlebot.hpp"
-#include "person.hpp"
+#include "turtlebot.h"
 
 
 // ####### GLOBAL VARIABLES #######
@@ -16,10 +15,10 @@
 Turtlebot turtlebot;
 
 // list of persons in the frame
-std::vector<Person> trackedPersons;
+std::vector<Person> tracked_persons;
 
 // stores the path of the robot
-nav_msgs::Path robotPath;
+nav_msgs::Path robot_path;
 
 // sequence number for path
 uint32_t seq = 0;
@@ -27,8 +26,8 @@ uint32_t seq = 0;
 
 // TODO: replace with path following algorithm
 // distance and deviation of target
-float targetDistance = 0;
-float targetYDeviation = 0;
+float target_distance = 0;
+float target_y_deviation = 0;
 
 
 // ####### FUNCTION PROTOTYPES #######
@@ -47,11 +46,11 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "body_tracker");
     ros::NodeHandle nh;
 
-    ros::Subscriber odomSub = nh.subscribe("/odom", 10, odometryCallback);
-    ros::Subscriber skeletonSub = nh.subscribe("/body_tracker/skeleton", 10, skeletonCallback);
+    ros::Subscriber odom_sub = nh.subscribe("/odom", 10, odometryCallback);
+    ros::Subscriber skeleton_sub = nh.subscribe("/body_tracker/skeleton", 10, skeletonCallback);
 
-    ros::Publisher velocityPub = nh.advertise<geometry_msgs::Twist>("/mobile_base/commands/velocity", 1000);
-    ros::Publisher pathPub = nh.advertise<nav_msgs::Path>("/path", 1000);
+    ros::Publisher velocity_pub = nh.advertise<geometry_msgs::Twist>("/mobile_base/commands/velocity", 1000);
+    ros::Publisher path_pub = nh.advertise<nav_msgs::Path>("/path", 1000);
 
     ros::Rate loop_rate(10);
 
@@ -59,47 +58,58 @@ int main(int argc, char **argv)
 
         debugPrintout();
 
+        for (std::vector<Person>::iterator iter = tracked_persons.begin(); iter != tracked_persons.end(); ++iter) {
+            if (iter->isTarget()) {
+                target_distance = iter->getDistance();
+                target_y_deviation = iter->getYDeviation();
+            }
+        }
+
+
         // move the robot
         // message to store velocity commands in
         geometry_msgs::Twist msg;
 
         // TODO: make smoother
-        if (targetYDeviation < -100) {
+        if (target_y_deviation < -100) {
             msg.angular.z = -0.5;
             ROS_INFO("[TURNING LEFT at %f]", msg.angular.z);
-        } else if (targetYDeviation > 100) {
+        } else if (target_y_deviation > 100) {
             msg.angular.z = 0.5;
             ROS_INFO("[TURNING RIGHT at %f]", msg.angular.z);
         } else
             msg.angular.z = 0;
 
         // publish velocity command for rotation
-        velocityPub.publish(msg);
+        velocity_pub.publish(msg);
 
-        if (targetDistance > 1800) {
+        if (target_distance > 1800) {
             msg.linear.x = 0.2;
             ROS_INFO("[MOVING FORWARDS at %f]", msg.linear.x);
-        } else if (targetDistance < 1000 && targetDistance > 0) {
+        } else if (target_distance < 1000 && target_distance > 0) {
             msg.linear.x = -0.2;
             ROS_INFO("[MOVING BACKWARDS at %f]", msg.linear.x);
         }
 
         // publish velocity command for moving straight
-        velocityPub.publish(msg);
+        velocity_pub.publish(msg);
 
-        // TODO: proper list management, testing
-        if (!trackedPersons.empty()) {
-            for (std::vector<Person>::iterator iter = trackedPersons.begin(); iter != trackedPersons.end(); ++iter) {
-                if (iter->isTracked && iter->skeleton.distanceCenterOfMass == 0)
-                    trackedPersons.erase(iter);
+        // FIXME: throws seg fault if list members get deleted
+        if (!tracked_persons.empty()) {
+            for (std::vector<Person>::iterator iter = tracked_persons.begin(); iter != tracked_persons.end(); ++iter) {
+                if (iter->getDistance() == 0) {
+                    iter->setTrackingStatus(false);
+                    iter->setTarget(false);
+                }
             }
         }
 
-        robotPath.header.seq = seq;
-        robotPath.header.stamp = ros::Time::now();
-        robotPath.header.frame_id = "odom";
 
-        pathPub.publish(robotPath);
+        robot_path.header.seq = seq;
+        robot_path.header.stamp = ros::Time::now();
+        robot_path.header.frame_id = "odom";
+
+        path_pub.publish(robot_path);
         ++seq;
 
         ros::spinOnce();
@@ -116,40 +126,18 @@ void debugPrintout()
 {
     system("clear");
 
-    ROS_INFO("Turtlebot information:");
-    ROS_INFO("  position:");
-    ROS_INFO("    x: %f", turtlebot.position.x);
-    ROS_INFO("    y: %f", turtlebot.position.y);
-    ROS_INFO("  orientation:");
-    ROS_INFO("    z: %f", turtlebot.orientation.z);
-    ROS_INFO("    w: %f\n", turtlebot.orientation.w);
+    turtlebot.printTurtlebotInfo();
 
     ROS_INFO("target information:");
-    ROS_INFO("  distance: %f", targetDistance);
-    ROS_INFO("  y-deviation: %f\n", targetYDeviation);
+    ROS_INFO("  distance: %f", target_distance);
+    ROS_INFO("  y-deviation: %f\n", target_y_deviation);
 
-    ROS_INFO("list size: %lu\n", trackedPersons.size());
+    ROS_INFO("list size: %lu\n", tracked_persons.size());
 
-    if (!trackedPersons.empty()) {
-        for (std::vector<Person>::iterator iter = trackedPersons.begin(); iter != trackedPersons.end(); ++iter) {
-            if (iter->isTracked) {
-                ROS_INFO("id: %d, distance; %f,is target: %d, number of gestures: %d",
-                         iter->skeleton.bodyId, iter->skeleton.distanceCenterOfMass, iter->isTarget,
-                         iter->skeleton.numberOfGestures);
-                ROS_INFO("  is target: %d", iter->isTarget);
-                ROS_INFO("  position (relative):");
-                ROS_INFO("    x: %f", iter->position.x);
-                ROS_INFO("    y: %f", iter->position.y);
-
-                // TODO: calculate correct absolute position
-                ROS_INFO("  position (absolute):");
-                ROS_INFO("    x: %f", iter->position.x);
-                ROS_INFO("    y: %f", iter->position.y);
-
-                ROS_INFO("  number of gestures: %d", iter->skeleton.numberOfGestures);
-                ROS_INFO("  gesture begin time: %d", iter->gestureBegin.sec);
-                ROS_INFO("  distance: %f", iter->skeleton.distanceCenterOfMass);
-                ROS_INFO("  y-deviation of center of mass: %f\n", iter->skeleton.centerOfMassY);
+    if (!tracked_persons.empty()) {
+        for (std::vector<Person>::iterator iter = tracked_persons.begin(); iter != tracked_persons.end(); ++iter) {
+            if (iter->isTracked()) {
+                iter->printPersonInfo();
             }
         }
     }
@@ -162,10 +150,8 @@ void debugPrintout()
  */
 void odometryCallback(const nav_msgs::Odometry::ConstPtr &msg)
 {
-    turtlebot.position.x = msg->pose.pose.position.x;
-    turtlebot.position.y = msg->pose.pose.position.y;
-    turtlebot.orientation.z = msg->pose.pose.orientation.z;
-    turtlebot.orientation.w = msg->pose.pose.orientation.w;
+    turtlebot.setPose(msg->pose.pose.position.x, msg->pose.pose.position.y, msg->pose.pose.orientation.z,
+            msg->pose.pose.orientation.w);
 
     geometry_msgs::PoseStamped pose;
     pose.header.seq = seq;
@@ -179,7 +165,7 @@ void odometryCallback(const nav_msgs::Odometry::ConstPtr &msg)
     pose.pose.orientation.z = msg->pose.pose.orientation.z;
     pose.pose.orientation.w = msg->pose.pose.orientation.w;
 
-    robotPath.poses.push_back(pose);
+    robot_path.poses.push_back(pose);
 }
 
 
@@ -191,41 +177,54 @@ void skeletonCallback(const body_tracker_msgs::Skeleton::ConstPtr &msg)
 {
 
     // save data from message
-    SkeletonInfo skeleton = {msg->body_id, msg->gesture, msg->centerOfMass.x, msg->centerOfMass.y};
-    Position2D position = {msg->joint_position_spine_mid.x, msg->joint_position_spine_mid.y};
+    body_tracker_msgs::Skeleton skeleton;
+
+    skeleton.body_id = msg->body_id;
+    skeleton.tracking_status = msg->tracking_status;
+    skeleton.gesture = msg->gesture;
+    skeleton.position2D = msg->position2D;
+    skeleton.centerOfMass = msg->centerOfMass;
+    skeleton.joint_position_head = msg->joint_position_head;
+    skeleton.joint_position_neck =  msg->joint_position_neck;
+    skeleton.joint_position_shoulder = msg->joint_position_shoulder;
+    skeleton.joint_position_spine_top = msg->joint_position_spine_top;
+    skeleton.joint_position_spine_mid = msg->joint_position_spine_mid;
+    skeleton.joint_position_spine_bottom = msg->joint_position_spine_bottom;
+    skeleton.joint_position_left_shoulder = msg->joint_position_left_shoulder;
+    skeleton.joint_position_left_elbow = msg->joint_position_left_elbow;
+    skeleton.joint_position_left_hand = msg->joint_position_left_hand;
+    skeleton.joint_position_right_shoulder = msg->joint_position_right_shoulder;
+    skeleton.joint_position_right_elbow = msg->joint_position_right_elbow;
+    skeleton.joint_position_right_hand = msg->joint_position_right_hand;
 
     bool found = false;
-    for (std::vector<Person>::iterator iter = trackedPersons.begin(); iter != trackedPersons.end(); ++iter) {
-        if (iter->skeleton.bodyId == skeleton.bodyId) {
+    for (std::vector<Person>::iterator iter = tracked_persons.begin(); iter != tracked_persons.end(); ++iter) {
+        if (iter->getId() == skeleton.body_id) {
             found = true;
-            if (iter->isTarget) {
-                iter->skeleton = skeleton;
-                iter->position = position;
-                targetDistance = skeleton.distanceCenterOfMass;
-                targetYDeviation = skeleton.centerOfMassY;
+            if (iter->isTarget()) {
+                iter->setSkeleton(skeleton);
             } else {
 
                 // update information
-                iter->skeleton = skeleton;
-                iter->position = position;
+                iter->setSkeleton(skeleton);
 
                 // FIXME
                 // check for gestures
-                if (skeleton.numberOfGestures == 2) {
-                    if (iter->gestureBegin.sec == 0) {
-                        iter->gestureBegin = ros::Time::now();
+                if (skeleton.gesture == 2) {
+                    if (iter->getGestureBegin() == 0) {
+                        iter->setGestureBegin(ros::Time::now());
                     }
                 } else {
-                    if (iter->gestureBegin.sec != 0) {
+                    if (iter->getGestureBegin() != 0) {
 
                         // TODO: figure out how to play a sound
                         // new target selected after 3 seconds of closing both hands
-                        if (ros::Time::now().sec - iter->gestureBegin.sec >= 3) {
-                            iter->isTarget = true;
-                            turtlebot.status = FOLLOWING;
+                        if (ros::Time::now().sec - iter->getGestureBegin() >= 3) {
+                            iter->setTarget(true);
+                            turtlebot.setStatus(FOLLOWING);
 
                             // reset gesture beginning time
-                            iter->gestureBegin = ros::Time(0);
+                            iter->setGestureBegin(ros::Time(0));
                         }
                     }
                 }
@@ -235,6 +234,6 @@ void skeletonCallback(const body_tracker_msgs::Skeleton::ConstPtr &msg)
 
     // save new person if new id has been detected
     if (!found) {
-        trackedPersons.push_back(Person(skeleton, position));
+        tracked_persons.emplace_back(Person(skeleton));
     }
 }
