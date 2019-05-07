@@ -19,23 +19,24 @@ private:
     ros::Time m_gesture_begin;
 
 public:
-    explicit Person(const body_tracker_msgs::Skeleton &t_skeleton);
+    explicit Person(const body_tracker_msgs::Skeleton& t_skeleton);
     void printPersonInfo() const;
+    void printVolatilePersonInfo() const;
     bool isTracked() const;
     void setTrackingStatus(bool t_is_tracked);
     int getId() const;
     bool isTarget() const;
     void setTarget(bool t_is_target);
-    void setSkeleton(const body_tracker_msgs::Skeleton &t_skeleton);
+    void setSkeleton(const body_tracker_msgs::Skeleton& t_skeleton);
     int getGestureBegin() const;
-    void setGestureBegin(const ros::Time &t_gesture_begin);
+    void setGestureBegin(const ros::Time& t_gesture_begin);
     double getDistance() const;
     double getYDeviation() const;
     void calculateVelocity();
 };
 
 
-Person::Person(const body_tracker_msgs::Skeleton &t_skeleton)
+Person::Person(const body_tracker_msgs::Skeleton& t_skeleton)
 {
     m_is_tracked = true;
     m_is_target = false;
@@ -47,6 +48,13 @@ Person::Person(const body_tracker_msgs::Skeleton &t_skeleton)
 
 
 void Person::printPersonInfo() const
+{
+    ROS_INFO("id: %d, is taget: %d, distance: %f, number of gestures: %d",
+             m_skeleton.body_id, m_is_target, m_skeleton.centerOfMass.x, m_skeleton.gesture);
+}
+
+
+void Person::printVolatilePersonInfo() const
 {
     ROS_INFO("id: %d", m_skeleton.body_id);
     ROS_INFO("  is target: %d", m_is_target);
@@ -96,7 +104,7 @@ void Person::setTarget(bool t_is_target)
 }
 
 
-void Person::setSkeleton(const body_tracker_msgs::Skeleton &t_skeleton)
+void Person::setSkeleton(const body_tracker_msgs::Skeleton& t_skeleton)
 {
     m_skeleton = t_skeleton;
 }
@@ -108,7 +116,7 @@ int Person::getGestureBegin() const
 }
 
 
-void Person::setGestureBegin(const ros::Time &t_gesture_begin)
+void Person::setGestureBegin(const ros::Time& t_gesture_begin)
 {
     m_gesture_begin = t_gesture_begin;
 }

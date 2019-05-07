@@ -10,34 +10,30 @@
 #include "turtlebot.h"
 
 
+// TODO: global variables have to vanish; sadly, callback methods don't allow for parameters
 // ####### GLOBAL VARIABLES #######
 
+
 // instance of the turtlebot robot
-Turtlebot turtlebot;
+Turtlebot g_turtlebot;
 
 // list of persons in the frame
-std::vector<Person> tracked_persons;
+std::vector<Person> g_tracked_persons;
 
 // stores the path of the robot
-nav_msgs::Path robot_path;
+nav_msgs::Path g_robot_path;
 
 // sequence number for path
-uint32_t seq = 0;
-
-
-// TODO: replace with path following algorithm
-// distance and deviation of target
-float target_distance = 0;
-float target_y_deviation = 0;
+uint32_t g_seq = 0;
 
 
 // ####### FUNCTION PROTOTYPES #######
 
-void debugPrintout();
+void debugPrintout(float t_target_distance, float t_target_y_deviation);
 
-void odometryCallback(const nav_msgs::Odometry::ConstPtr &msg);
+void odometryCallback(const nav_msgs::Odometry::ConstPtr& msg);
 
-void skeletonCallback(const body_tracker_msgs::Skeleton::ConstPtr &msg);
+void skeletonCallback(const body_tracker_msgs::Skeleton::ConstPtr& msg);
 
 
 // ####### ENTRY POINT #######
@@ -54,29 +50,39 @@ int main(int argc, char **argv)
     ros::Publisher path_pub = nh.advertise<nav_msgs::Path>("/path", 1000);
     ros::Publisher velocity_pub = nh.advertise<std_msgs::Float32>("/velocity", 1000);
 
-    ros::Rate loop_rate(10);
+    // frequency of the main loop
+    const double FREQUENCY = 10;
+
+    ros::Rate loop_rate(FREQUENCY);
 
     while (ros::ok()) {
 
+        // TODO: replace with path following algorithm
+        // distance and deviation of target
+        float target_distance = 0;
+        float target_y_deviation = 0;
+
+        // processes callbacks
         ros::spinOnce();
 
-        turtlebot.calculateVelocity();
+        g_turtlebot.calculateVelocity(FREQUENCY);
 
-        debugPrintout();
-
-        for (std::vector<Person>::iterator iter = tracked_persons.begin(); iter != tracked_persons.end(); ++iter) {
+        // set variables for target
+        for (std::vector<Person>::iterator iter = g_tracked_persons.begin(); iter != g_tracked_persons.end(); ++iter) {
             if (iter->isTarget()) {
                 target_distance = iter->getDistance();
                 target_y_deviation = iter->getYDeviation();
             }
         }
 
+        debugPrintout(target_distance, target_y_deviation);
 
         // move the robot
         // message to store velocity commands in
         geometry_msgs::Twist msg;
 
-        // TODO: make smoother
+        // TODO: make smoother, use a method for that
+        // rotation
         if (target_y_deviation < -100) {
             msg.angular.z = -0.5;
             ROS_INFO("[TURNING LEFT at %f]", msg.angular.z);
@@ -86,9 +92,9 @@ int main(int argc, char **argv)
         } else
             msg.angular.z = 0;
 
-        // publish velocity command for rotation
         velocity_command_pub.publish(msg);
 
+        // moving straight
         if (target_distance > 1800) {
             msg.linear.x = 0.2;
             ROS_INFO("[MOVING FORWARDS at %f]", msg.linear.x);
@@ -97,12 +103,28 @@ int main(int argc, char **argv)
             ROS_INFO("[MOVING BACKWARDS at %f]", msg.linear.x);
         }
 
-        // publish velocity command for moving straight
         velocity_command_pub.publish(msg);
 
+        // set and publish robot path
+        g_robot_path.header.seq = g_seq;
+        g_robot_path.header.stamp = ros::Time::now();
+        g_robot_path.header.frame_id = "odom";
+        path_pub.publish(g_robot_path);
+        ++g_seq;
+
+        // set and publish robot velocity
+        std_msgs::Float32 turtlebot_velocity;
+        turtlebot_velocity.data = g_turtlebot.getVelocity();
+        velocity_pub.publish(turtlebot_velocity);
+
+        // set old position to calculate velocity
+        g_turtlebot.updateOldPose();
+
         // FIXME: throws seg fault if list members get deleted
-        if (!tracked_persons.empty()) {
-            for (std::vector<Person>::iterator iter = tracked_persons.begin(); iter != tracked_persons.end(); ++iter) {
+        // manage list
+        if (!g_tracked_persons.empty()) {
+            for (std::vector<Person>::iterator iter = g_tracked_persons.begin();
+                 iter != g_tracked_persons.end(); ++iter) {
                 if (iter->getDistance() == 0) {
                     iter->setTrackingStatus(false);
                     iter->setTarget(false);
@@ -110,19 +132,6 @@ int main(int argc, char **argv)
             }
         }
 
-
-        robot_path.header.seq = seq;
-        robot_path.header.stamp = ros::Time::now();
-        robot_path.header.frame_id = "odom";
-
-        path_pub.publish(robot_path);
-        ++seq;
-
-        std_msgs::Float32 turtlebot_velocity;
-        turtlebot_velocity.data = turtlebot.getVelocity();
-        velocity_pub.publish(turtlebot_velocity);
-
-        turtlebot.setOldPose();
         loop_rate.sleep();
     }
     return 0;
@@ -131,27 +140,28 @@ int main(int argc, char **argv)
 
 /**
  * @brief Prints out debugging information including the robot and the tracked persons.
+ * @param t_target_distance distance to target
+ * @param t_target_y_deviation deviation on the y-axis of the target
  */
-void debugPrintout()
+void debugPrintout(float t_target_distance, float t_target_y_deviation)
 {
     system("clear");
 
-    turtlebot.printTurtlebotInfo();
+    g_turtlebot.printTurtlebotInfo();
 
     ROS_INFO("target information:");
-    ROS_INFO("  distance: %f", target_distance);
-    ROS_INFO("  y-deviation: %f\n", target_y_deviation);
+    ROS_INFO("  distance: %f", t_target_distance);
+    ROS_INFO("  y-deviation: %f\n", t_target_y_deviation);
 
-    ROS_INFO("list size: %lu\n", tracked_persons.size());
+    ROS_INFO("list size: %lu\n", g_tracked_persons.size());
 
-    /*
-    if (!tracked_persons.empty()) {
-        for (std::vector<Person>::iterator iter = tracked_persons.begin(); iter != tracked_persons.end(); ++iter) {
+    if (!g_tracked_persons.empty()) {
+        for (std::vector<Person>::iterator iter = g_tracked_persons.begin(); iter != g_tracked_persons.end(); ++iter) {
             if (iter->isTracked()) {
                 iter->printPersonInfo();
             }
         }
-    } */
+    }
 }
 
 
@@ -159,13 +169,13 @@ void debugPrintout()
  * @brief Sets odometry fields with data from the subscribed odometry topic.
  * @param msg the message from the subscribed topic
  */
-void odometryCallback(const nav_msgs::Odometry::ConstPtr &msg)
+void odometryCallback(const nav_msgs::Odometry::ConstPtr& msg)
 {
-    turtlebot.setPose(msg->pose.pose.position.x, msg->pose.pose.position.y, msg->pose.pose.orientation.z,
-            msg->pose.pose.orientation.w);
+    g_turtlebot.setPose(msg->pose.pose.position.x, msg->pose.pose.position.y, msg->pose.pose.orientation.z,
+                        msg->pose.pose.orientation.w);
 
     geometry_msgs::PoseStamped pose;
-    pose.header.seq = seq;
+    pose.header.seq = g_seq;
     pose.header.stamp = ros::Time::now();
     pose.header.frame_id = "odom";
 
@@ -176,7 +186,7 @@ void odometryCallback(const nav_msgs::Odometry::ConstPtr &msg)
     pose.pose.orientation.z = msg->pose.pose.orientation.z;
     pose.pose.orientation.w = msg->pose.pose.orientation.w;
 
-    robot_path.poses.push_back(pose);
+    g_robot_path.poses.push_back(pose);
 }
 
 
@@ -184,7 +194,7 @@ void odometryCallback(const nav_msgs::Odometry::ConstPtr &msg)
  * @brief Manages the list of tracked persons with data received from the skeleton topic.
  * @param msg the message from the subscribed topic
  */
-void skeletonCallback(const body_tracker_msgs::Skeleton::ConstPtr &msg)
+void skeletonCallback(const body_tracker_msgs::Skeleton::ConstPtr& msg)
 {
 
     // save data from message
@@ -196,7 +206,7 @@ void skeletonCallback(const body_tracker_msgs::Skeleton::ConstPtr &msg)
     skeleton.position2D = msg->position2D;
     skeleton.centerOfMass = msg->centerOfMass;
     skeleton.joint_position_head = msg->joint_position_head;
-    skeleton.joint_position_neck =  msg->joint_position_neck;
+    skeleton.joint_position_neck = msg->joint_position_neck;
     skeleton.joint_position_shoulder = msg->joint_position_shoulder;
     skeleton.joint_position_spine_top = msg->joint_position_spine_top;
     skeleton.joint_position_spine_mid = msg->joint_position_spine_mid;
@@ -209,7 +219,7 @@ void skeletonCallback(const body_tracker_msgs::Skeleton::ConstPtr &msg)
     skeleton.joint_position_right_hand = msg->joint_position_right_hand;
 
     bool found = false;
-    for (std::vector<Person>::iterator iter = tracked_persons.begin(); iter != tracked_persons.end(); ++iter) {
+    for (std::vector<Person>::iterator iter = g_tracked_persons.begin(); iter != g_tracked_persons.end(); ++iter) {
         if (iter->getId() == skeleton.body_id) {
             found = true;
             if (iter->isTarget()) {
@@ -232,7 +242,7 @@ void skeletonCallback(const body_tracker_msgs::Skeleton::ConstPtr &msg)
                         // new target selected after 3 seconds of closing both hands
                         if (ros::Time::now().sec - iter->getGestureBegin() >= 3) {
                             iter->setTarget(true);
-                            turtlebot.setStatus(FOLLOWING);
+                            g_turtlebot.setStatus(FOLLOWING);
 
                             // reset gesture beginning time
                             iter->setGestureBegin(ros::Time(0));
@@ -245,6 +255,6 @@ void skeletonCallback(const body_tracker_msgs::Skeleton::ConstPtr &msg)
 
     // save new person if new id has been detected
     if (!found) {
-        tracked_persons.emplace_back(Person(skeleton));
+        g_tracked_persons.emplace_back(Person(skeleton));
     }
 }

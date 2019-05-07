@@ -10,7 +10,7 @@
 #define SEARCHING 2
 
 
-/**l
+/**
  * Stores data related to the roboter.
  */
 class Turtlebot
@@ -29,11 +29,14 @@ public:
     double getVelocity() const;
     geometry_msgs::Pose getPose();
     void setPose(double t_position_x, double t_position_y, double t_orientation_z, double t_orientation_w);
-    void setOldPose();
-    void calculateVelocity();
+    void updateOldPose();
+    void calculateVelocity(double t_frequency);
 };
 
 
+/**
+ * @brief Constructor.
+ */
 Turtlebot::Turtlebot()
 {
     m_status = WAITING;
@@ -43,13 +46,13 @@ Turtlebot::Turtlebot()
 }
 
 
+/**
+ * @brief Prints out information about the roboter.
+ */
 void Turtlebot::printTurtlebotInfo() const
 {
     ROS_INFO("Turtlebot information:");
     ROS_INFO("  velocity: %f", m_velocity);
-    ROS_INFO("  position (old):");
-    ROS_INFO("    x: %f", m_old_pose.position.x);
-    ROS_INFO("    y: %f", m_old_pose.position.y);
     ROS_INFO("  position:");
     ROS_INFO("    x: %f", m_pose.position.x);
     ROS_INFO("    y: %f", m_pose.position.y);
@@ -59,40 +62,67 @@ void Turtlebot::printTurtlebotInfo() const
 }
 
 
+/**
+ * @brief Getter for the status of the roboter.
+ * @return the status ({WAITING, FOLLOWING, SEARCHING})
+ */
 int Turtlebot::getStatus()
 {
     return m_status;
 }
 
 
+/**
+ * @brief Setter for the status of the roboter.
+ * @param t_status the new status
+ */
 void Turtlebot::setStatus(const int t_status)
 {
     m_status = t_status;
 }
 
+
+/**
+ * @brief Getter for the velocity of the robot.
+ * @return the velocity
+ */
 double Turtlebot::getVelocity() const
 {
     return m_velocity;
 }
 
 
+/**
+ * @brief Getter for the pose of the robot, consisting of the position and orientation.
+ * @return the pose
+ */
 geometry_msgs::Pose Turtlebot::getPose()
 {
     return m_pose;
 }
 
 
-void Turtlebot::setPose(const double t_positionX, const double t_positionY, const double t_orientationZ,
-                        const double t_orientationW)
+/**
+ * @brief Setter for the pose of the robot.
+ * @param t_position_x x-coordinate of the position
+ * @param t_position_y y-coordinate of the position
+ * @param t_orientation_z z-coordinate of the orientation
+ * @param t_orientation_w w-coordinate of the orientation
+ */
+void Turtlebot::setPose(const double t_position_x, const double t_position_y, const double t_orientation_z,
+                        const double t_orientation_w)
 {
-    m_pose.position.x = t_positionX;
-    m_pose.position.y = t_positionY;
-    m_pose.orientation.z = t_orientationZ;
-    m_pose.orientation.w = t_orientationW;
+    m_pose.position.x = t_position_x;
+    m_pose.position.y = t_position_y;
+    m_pose.orientation.z = t_orientation_z;
+    m_pose.orientation.w = t_orientation_w;
 }
 
 
-void Turtlebot::setOldPose()
+/**
+ * @brief Updates the old pose of the robot for the calculation of the robot.
+ */
+void Turtlebot::updateOldPose()
 {
     m_old_pose.position.x = m_pose.position.x;
     m_old_pose.position.y = m_pose.position.y;
@@ -100,9 +130,15 @@ void Turtlebot::setOldPose()
     m_old_pose.orientation.w = m_pose.orientation.w;
 }
 
-void Turtlebot::calculateVelocity()
+
+/**
+ * @brief Calculates the velocity of the robot.
+ * @param frequency the frequency of the main loop, needed to get the time difference
+ */
+void Turtlebot::calculateVelocity(double frequency)
 {
-    m_velocity = sqrt(pow((m_old_pose.position.x - m_pose.position.x), 2) + pow((m_old_pose.position.y - m_pose.position.y), 2)) / 0.1;
+    m_velocity = sqrt(pow((m_old_pose.position.x - m_pose.position.x), 2) +
+                      pow((m_old_pose.position.y - m_pose.position.y), 2)) / (1 / frequency);
 }
 
 
