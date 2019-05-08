@@ -13,7 +13,6 @@
 // TODO: global variables have to vanish; sadly, callback methods don't allow for parameters
 // ####### GLOBAL VARIABLES #######
 
-
 // instance of the turtlebot robot
 Turtlebot g_turtlebot;
 
@@ -50,17 +49,15 @@ int main(int argc, char **argv)
     ros::Publisher path_pub = nh.advertise<nav_msgs::Path>("/path", 1000);
     ros::Publisher velocity_pub = nh.advertise<std_msgs::Float32>("/velocity", 1000);
 
+    // object that holds target information
+    Person target(body_tracker_msgs::Skeleton{});
+
     // frequency of the main loop
     const double FREQUENCY = 10;
 
     ros::Rate loop_rate(FREQUENCY);
 
     while (ros::ok()) {
-
-        // TODO: replace with path following algorithm
-        // distance and deviation of target
-        float target_distance = 0;
-        float target_y_deviation = 0;
 
         // processes callbacks
         ros::spinOnce();
@@ -70,15 +67,14 @@ int main(int argc, char **argv)
         // set variables for target
         for (std::vector<Person>::iterator iter = g_tracked_persons.begin(); iter != g_tracked_persons.end(); ++iter) {
             if (iter->isTarget()) {
-                target_distance = iter->getDistance();
-                target_y_deviation = iter->getYDeviation();
+                target.setSkeleton(iter->getSkeleton());
             }
         }
 
-        if (target_distance == 0 && target_y_deviation == 0)
+        if (target.getDistance() == 0 && target.getYDeviation() == 0)
             g_turtlebot.setStatus(WAITING);
 
-        debugPrintout(target_distance, target_y_deviation);
+        debugPrintout(target.getDistance(), target.getYDeviation());
 
         // move the robot
         // message to store velocity commands in
@@ -86,10 +82,10 @@ int main(int argc, char **argv)
 
         // TODO: make smoother, use a method for that
         // rotation
-        if (target_y_deviation < -100) {
+        if (target.getYDeviation() < -100) {
             msg.angular.z = -0.5;
             ROS_INFO("[TURNING LEFT at %f]", msg.angular.z);
-        } else if (target_y_deviation > 100) {
+        } else if (target.getYDeviation() > 100) {
             msg.angular.z = 0.5;
             ROS_INFO("[TURNING RIGHT at %f]", msg.angular.z);
         } else
@@ -98,10 +94,10 @@ int main(int argc, char **argv)
         velocity_command_pub.publish(msg);
 
         // moving straight
-        if (target_distance > 1800) {
+        if (target.getDistance() > 1800) {
             msg.linear.x = 0.2;
             ROS_INFO("[MOVING FORWARDS at %f]", msg.linear.x);
-        } else if (target_distance < 1000 && target_distance > 0) {
+        } else if (target.getDistance() < 1000 && target.getDistance() > 0) {
             msg.linear.x = -0.2;
             ROS_INFO("[MOVING BACKWARDS at %f]", msg.linear.x);
         }

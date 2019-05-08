@@ -27,6 +27,7 @@ public:
     int getId() const;
     bool isTarget() const;
     void setTarget(bool t_is_target);
+    body_tracker_msgs::Skeleton getSkeleton() const;
     void setSkeleton(const body_tracker_msgs::Skeleton& t_skeleton);
     int getGestureBegin() const;
     void setGestureBegin(const ros::Time& t_gesture_begin);
@@ -101,6 +102,12 @@ bool Person::isTarget() const
 void Person::setTarget(bool t_is_target)
 {
     m_is_target = t_is_target;
+}
+
+
+body_tracker_msgs::Skeleton Person::getSkeleton() const
+{
+    return m_skeleton;
 }
 
 
