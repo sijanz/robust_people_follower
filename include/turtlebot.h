@@ -1,6 +1,7 @@
 #ifndef ROBUST_PEOPLE_FOLLOWER_TURTLEBOT_H
 #define ROBUST_PEOPLE_FOLLOWER_TURTLEBOT_H
 
+#include <tf/transform_datatypes.h>
 #include <geometry_msgs/Pose.h>
 #include "person.h"
 
@@ -20,6 +21,9 @@ private:
     double m_velocity;
     geometry_msgs::Pose m_pose;
     geometry_msgs::Pose m_old_pose;
+    double m_angle;
+
+    void calculateAngle();
 
 public:
     Turtlebot();
@@ -28,9 +32,10 @@ public:
     void setStatus(int t_status);
     double getVelocity() const;
     geometry_msgs::Pose getPose();
-    void setPose(double t_position_x, double t_position_y, double t_orientation_z, double t_orientation_w);
+    void setPose(const geometry_msgs::Pose& t_pose);
     void updateOldPose();
     void calculateVelocity(double t_frequency);
+    double getAngle() const;
 };
 
 
@@ -51,7 +56,7 @@ Turtlebot::Turtlebot()
  */
 void Turtlebot::printTurtlebotInfo() const
 {
-    const char* status_string;
+    const char *status_string;
     switch (m_status) {
         case 0:
             status_string = "WAITING";
@@ -72,7 +77,8 @@ void Turtlebot::printTurtlebotInfo() const
     ROS_INFO("    y: %f", m_pose.position.y);
     ROS_INFO("  orientation:");
     ROS_INFO("    z: %f", m_pose.orientation.z);
-    ROS_INFO("    w: %f\n", m_pose.orientation.w);
+    ROS_INFO("    w: %f", m_pose.orientation.w);
+    ROS_INFO("  angle: %f\n", m_angle);
 }
 
 
@@ -123,13 +129,10 @@ geometry_msgs::Pose Turtlebot::getPose()
  * @param t_orientation_z z-coordinate of the orientation
  * @param t_orientation_w w-coordinate of the orientation
  */
-void Turtlebot::setPose(const double t_position_x, const double t_position_y, const double t_orientation_z,
-                        const double t_orientation_w)
+void Turtlebot::setPose(const geometry_msgs::Pose& t_pose)
 {
-    m_pose.position.x = t_position_x;
-    m_pose.position.y = t_position_y;
-    m_pose.orientation.z = t_orientation_z;
-    m_pose.orientation.w = t_orientation_w;
+    m_pose = t_pose;
+    calculateAngle();
 }
 
 
@@ -153,6 +156,22 @@ void Turtlebot::calculateVelocity(double frequency)
 {
     m_velocity = sqrt(pow((m_old_pose.position.x - m_pose.position.x), 2) +
                       pow((m_old_pose.position.y - m_pose.position.y), 2)) / (1 / frequency);
+}
+
+
+void Turtlebot::calculateAngle()
+{
+    tf::Quaternion q(m_pose.orientation.x, m_pose.orientation.y, m_pose.orientation.z, m_pose.orientation.w);
+    tf::Matrix3x3 m(q);
+    double roll, pitch, yaw;
+    m.getRPY(roll, pitch, yaw);
+    m_angle = yaw;
+}
+
+
+double Turtlebot::getAngle() const
+{
+    return m_angle;
 }
 
 

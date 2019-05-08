@@ -15,7 +15,7 @@ private:
     bool m_is_target;
     double m_velocity;
     body_tracker_msgs::Skeleton m_skeleton;
-    geometry_msgs::Point32 m_absolutePosition;
+    geometry_msgs::Point32 m_absolute_position;
     ros::Time m_gesture_begin;
 
 public:
@@ -29,10 +29,13 @@ public:
     void setTarget(bool t_is_target);
     body_tracker_msgs::Skeleton getSkeleton() const;
     void setSkeleton(const body_tracker_msgs::Skeleton& t_skeleton);
+    geometry_msgs::Point32 getAbsolutePosition() const;
+    void setAbsolutePosition(const geometry_msgs::Point32& t_absolute_position);
     int getGestureBegin() const;
     void setGestureBegin(const ros::Time& t_gesture_begin);
     double getDistance() const;
     double getYDeviation() const;
+    void calculateAbsolutePosition(double t_robot_x, double t_robot_y, double t_robot_angle);
     void calculateVelocity();
 };
 
@@ -43,14 +46,14 @@ Person::Person(const body_tracker_msgs::Skeleton& t_skeleton)
     m_is_target = false;
     m_velocity = 0;
     m_gesture_begin = ros::Time(0);
-    m_absolutePosition.x = m_absolutePosition.y = m_absolutePosition.z = 0;
+    m_absolute_position.x = m_absolute_position.y = m_absolute_position.z = 0;
     m_skeleton = t_skeleton;
 }
 
 
 void Person::printPersonInfo() const
 {
-    ROS_INFO("id: %d, is taget: %d, distance: %f, number of gestures: %d",
+    ROS_INFO("id: %d, is target: %d, distance: %f, number of gestures: %d",
              m_skeleton.body_id, m_is_target, m_skeleton.centerOfMass.x, m_skeleton.gesture);
 }
 
@@ -58,18 +61,12 @@ void Person::printPersonInfo() const
 void Person::printVerbosePersonInfo() const
 {
     ROS_INFO("id: %d", m_skeleton.body_id);
-    ROS_INFO("  is target: %d", m_is_target);
     ROS_INFO("  position (relative):");
     ROS_INFO("    x: %f", m_skeleton.joint_position_spine_mid.x);
     ROS_INFO("    y: %f", m_skeleton.joint_position_spine_mid.y);
-
-    // TODO: calculate correct absolute position
     ROS_INFO("  position (absolute):");
-    ROS_INFO("    x: %f", m_absolutePosition.x);
-    ROS_INFO("    y: %f", m_absolutePosition.y);
-
-    ROS_INFO("  number of gestures: %d", m_skeleton.gesture);
-    ROS_INFO("  gesture begin time: %d", m_gesture_begin.sec);
+    ROS_INFO("    x: %f", m_absolute_position.x);
+    ROS_INFO("    y: %f", m_absolute_position.y);
     ROS_INFO("  distance: %f", m_skeleton.centerOfMass.x);
     ROS_INFO("  y-deviation of center of mass: %f\n", m_skeleton.centerOfMass.y);
 }
@@ -117,6 +114,18 @@ void Person::setSkeleton(const body_tracker_msgs::Skeleton& t_skeleton)
 }
 
 
+geometry_msgs::Point32 Person::getAbsolutePosition() const
+{
+    return m_absolute_position;
+}
+
+
+void Person::setAbsolutePosition(const geometry_msgs::Point32& t_absolute_position)
+{
+    m_absolute_position = t_absolute_position;
+}
+
+
 int Person::getGestureBegin() const
 {
     return m_gesture_begin.sec;
@@ -138,6 +147,15 @@ double Person::getDistance() const
 double Person::getYDeviation() const
 {
     return m_skeleton.centerOfMass.y;
+}
+
+
+void Person::calculateAbsolutePosition(double t_robot_x, double t_robot_y, double t_robot_angle)
+{
+    m_absolute_position.x = t_robot_x + cos(t_robot_angle) * m_skeleton.joint_position_spine_mid.x -
+                            sin(t_robot_angle) * m_skeleton.joint_position_spine_mid.y;
+    m_absolute_position.y = t_robot_y + sin(t_robot_angle) * m_skeleton.joint_position_spine_mid.x -
+                            cos(t_robot_angle) * m_skeleton.joint_position_spine_mid.y;
 }
 
 
