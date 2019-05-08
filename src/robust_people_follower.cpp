@@ -75,6 +75,9 @@ int main(int argc, char **argv)
             }
         }
 
+        if (target_distance == 0 && target_y_deviation == 0)
+            g_turtlebot.setStatus(WAITING);
+
         debugPrintout(target_distance, target_y_deviation);
 
         // move the robot

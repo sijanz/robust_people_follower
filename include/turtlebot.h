@@ -51,7 +51,21 @@ Turtlebot::Turtlebot()
  */
 void Turtlebot::printTurtlebotInfo() const
 {
+    const char* status_string;
+    switch (m_status) {
+        case 0:
+            status_string = "WAITING";
+            break;
+        case 1:
+            status_string = "FOLLOWING";
+            break;
+        default:
+            status_string = "SEARCHING";
+            break;
+    }
+
     ROS_INFO("Turtlebot information:");
+    ROS_INFO("  status: [%s]", status_string);
     ROS_INFO("  velocity: %f", m_velocity);
     ROS_INFO("  position:");
     ROS_INFO("    x: %f", m_pose.position.x);

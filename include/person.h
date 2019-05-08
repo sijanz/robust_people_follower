@@ -21,7 +21,7 @@ private:
 public:
     explicit Person(const body_tracker_msgs::Skeleton& t_skeleton);
     void printPersonInfo() const;
-    void printVolatilePersonInfo() const;
+    void printVerbosePersonInfo() const;
     bool isTracked() const;
     void setTrackingStatus(bool t_is_tracked);
     int getId() const;
@@ -54,7 +54,7 @@ void Person::printPersonInfo() const
 }
 
 
-void Person::printVolatilePersonInfo() const
+void Person::printVerbosePersonInfo() const
 {
     ROS_INFO("id: %d", m_skeleton.body_id);
     ROS_INFO("  is target: %d", m_is_target);
