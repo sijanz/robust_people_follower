@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <cmath>
 
 #include <ros/ros.h>
 #include <body_tracker_msgs/Skeleton.h>
@@ -104,18 +105,15 @@ int main(int argc, char **argv)
         // message to store velocity commands in
         geometry_msgs::Twist msg;
 
-        // TODO: make rotation dynamic
         // rotation
         if (target.getYDeviation() < -150) {
-            msg.angular.z = -0.5;
+            msg.angular.z = -0.0025 * std::abs(target.getYDeviation());
             ROS_INFO("[TURNING LEFT at %f]", msg.angular.z);
         } else if (target.getYDeviation() > 150) {
-            msg.angular.z = 0.5;
+            msg.angular.z = 0.0025 * target.getYDeviation();
             ROS_INFO("[TURNING RIGHT at %f]", msg.angular.z);
         } else
             msg.angular.z = 0;
-
-        velocity_command_pub.publish(msg);
 
         // moving straight
         if (target.getDistance() > 1800) {
