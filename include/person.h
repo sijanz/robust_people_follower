@@ -16,6 +16,7 @@ private:
     double m_velocity;
     body_tracker_msgs::Skeleton m_skeleton;
     geometry_msgs::Point32 m_absolute_position;
+    geometry_msgs::Point32 m_old_absolute_position;
     ros::Time m_gesture_begin;
 
 public:
@@ -36,7 +37,10 @@ public:
     double getDistance() const;
     double getYDeviation() const;
     void calculateAbsolutePosition(double t_robot_x, double t_robot_y, double t_robot_angle);
-    void calculateVelocity();
+    void calculateVelocity(double t_frequency);
+    void updateOldPosition();
+    double getVelocity() const;
+    void setVelocity(double t_velocity);
 };
 
 
@@ -61,6 +65,7 @@ void Person::printPersonInfo() const
 void Person::printVerbosePersonInfo() const
 {
     ROS_INFO("id: %d", m_skeleton.body_id);
+    ROS_INFO("  velocity: %f", m_velocity);
     ROS_INFO("  position (relative):");
     ROS_INFO("    x: %f", m_skeleton.joint_position_spine_mid.x);
     ROS_INFO("    y: %f", m_skeleton.joint_position_spine_mid.y);
@@ -159,9 +164,27 @@ void Person::calculateAbsolutePosition(double t_robot_x, double t_robot_y, doubl
 }
 
 
-void Person::calculateVelocity()
+void Person::calculateVelocity(double t_frequency)
 {
-    // TODO
+    m_velocity = sqrt(pow((m_old_absolute_position.x - m_absolute_position.x), 2) +
+                      pow((m_old_absolute_position.y - m_absolute_position.y), 2)) / (1 / t_frequency);
+}
+
+
+void Person::updateOldPosition()
+{
+    m_old_absolute_position = m_absolute_position;
+}
+
+
+double Person::getVelocity() const
+{
+    return m_velocity;
+}
+
+void Person::setVelocity(double t_velocity)
+{
+    m_velocity = t_velocity;
 }
 
 

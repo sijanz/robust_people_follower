@@ -62,7 +62,7 @@ int main(int argc, char **argv)
     Person target(body_tracker_msgs::Skeleton{});
 
     // frequency of the main loop
-    const double FREQUENCY = 10;
+    const double FREQUENCY = 10.0;
 
     ros::Rate loop_rate(FREQUENCY);
 
@@ -78,12 +78,15 @@ int main(int argc, char **argv)
             if (iter->isTarget()) {
                 target.setSkeleton(iter->getSkeleton());
                 target.setAbsolutePosition(iter->getAbsolutePosition());
+                target.calculateVelocity(FREQUENCY);
             }
         }
 
-        // set the robot's state to WAITING if target leaves the frame
-        if (target.getDistance() == 0 && target.getYDeviation() == 0)
+        // robot loses target
+        if (target.getDistance() == 0 && target.getYDeviation() == 0) {
             g_turtlebot.setStatus(WAITING);
+            target.setVelocity(0.0);
+        }
 
         // set pose for target
         geometry_msgs::PoseStamped pose_stamped;
@@ -116,7 +119,7 @@ int main(int argc, char **argv)
 
         // moving straight
         if (target.getDistance() > 1800) {
-            msg.linear.x = 0.2;
+            msg.linear.x = 0.3;
             ROS_INFO("[MOVING FORWARDS at %f]", msg.linear.x);
         } else if (target.getDistance() < 1000 && target.getDistance() > 0) {
             msg.linear.x = -0.2;
@@ -132,11 +135,6 @@ int main(int argc, char **argv)
         robot_path_pub.publish(g_robot_path);
         ++g_seq_robot;
 
-        // set and publish robot velocity
-        std_msgs::Float32 turtlebot_velocity;
-        turtlebot_velocity.data = g_turtlebot.getVelocity();
-        robot_velocity_pub.publish(turtlebot_velocity);
-
         // set and publish target path
         g_target_path.header.seq = g_seq_target;
         g_target_path.header.stamp = ros::Time::now();
@@ -144,14 +142,19 @@ int main(int argc, char **argv)
         target_path_pub.publish(g_target_path);
         ++g_seq_target;
 
-        // TODO: implement
+        // set and publish robot velocity
+        std_msgs::Float32 turtlebot_velocity;
+        turtlebot_velocity.data = g_turtlebot.getVelocity();
+        robot_velocity_pub.publish(turtlebot_velocity);
+
         // set and publish target velocity
         std_msgs::Float32 target_velocity;
-        target_velocity.data = 0;
+        target_velocity.data = target.getVelocity();
         target_velocity_pub.publish(target_velocity);
 
         // set old position to calculate velocity
         g_turtlebot.updateOldPose();
+        target.updateOldPosition();
 
         // FIXME: throws seg fault if list members get deleted
         // manage list

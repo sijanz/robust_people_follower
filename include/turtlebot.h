@@ -141,10 +141,7 @@ void Turtlebot::setPose(const geometry_msgs::Pose& t_pose)
  */
 void Turtlebot::updateOldPose()
 {
-    m_old_pose.position.x = m_pose.position.x;
-    m_old_pose.position.y = m_pose.position.y;
-    m_old_pose.orientation.z = m_pose.orientation.z;
-    m_old_pose.orientation.w = m_pose.orientation.w;
+    m_old_pose = m_pose;
 }
 
 
@@ -152,10 +149,10 @@ void Turtlebot::updateOldPose()
  * @brief Calculates the velocity of the robot.
  * @param frequency the frequency of the main loop, needed to get the time difference
  */
-void Turtlebot::calculateVelocity(double frequency)
+void Turtlebot::calculateVelocity(double t_frequency)
 {
     m_velocity = sqrt(pow((m_old_pose.position.x - m_pose.position.x), 2) +
-                      pow((m_old_pose.position.y - m_pose.position.y), 2)) / (1 / frequency);
+                      pow((m_old_pose.position.y - m_pose.position.y), 2)) / (1 / t_frequency);
 }
 
 
