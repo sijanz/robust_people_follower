@@ -104,12 +104,12 @@ int main(int argc, char **argv)
         // message to store velocity commands in
         geometry_msgs::Twist msg;
 
-        // TODO: make smoother, use a method for that
+        // TODO: make rotation dynamic
         // rotation
-        if (target.getYDeviation() < -100) {
+        if (target.getYDeviation() < -150) {
             msg.angular.z = -0.5;
             ROS_INFO("[TURNING LEFT at %f]", msg.angular.z);
-        } else if (target.getYDeviation() > 100) {
+        } else if (target.getYDeviation() > 150) {
             msg.angular.z = 0.5;
             ROS_INFO("[TURNING RIGHT at %f]", msg.angular.z);
         } else
@@ -119,11 +119,11 @@ int main(int argc, char **argv)
 
         // moving straight
         if (target.getDistance() > 1800) {
-            msg.linear.x = 0.3;
-            ROS_INFO("[MOVING FORWARDS at %f]", msg.linear.x);
+            msg.linear.x = 0.32 * (target.getDistance() / 1000) - 0.576;
+            ROS_INFO("[MOVING FORWARD AT %f]", msg.linear.x);
         } else if (target.getDistance() < 1000 && target.getDistance() > 0) {
-            msg.linear.x = -0.2;
-            ROS_INFO("[MOVING BACKWARDS at %f]", msg.linear.x);
+            msg.linear.x = 2 * (target.getDistance() / 1000) - 2;
+            ROS_INFO("[MOVING BACKWARDS AT %f]", msg.linear.x);
         }
 
         velocity_command_pub.publish(msg);
