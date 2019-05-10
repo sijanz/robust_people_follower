@@ -349,7 +349,7 @@ void RobustPeopleFollowerNode::skeletonCallback(const body_tracker_msgs::Skeleto
                             m_target.setTarget(false);
                             m_target.setVelocity(0.0);
                             m_target.setAbsolutePosition(geometry_msgs::Point32{});
-                            m_target.setGestureBegin(ros::Time::now());
+                            m_target.setGestureBegin(ros::Time(0));
 
                             m_turtlebot.setStatus(WAITING);
 
