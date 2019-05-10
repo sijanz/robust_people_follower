@@ -20,6 +20,7 @@ private:
     ros::Time m_gesture_begin;
 
 public:
+    Person();
     explicit Person(const body_tracker_msgs::Skeleton& t_skeleton);
     void printPersonInfo() const;
     void printVerbosePersonInfo() const;
@@ -42,6 +43,17 @@ public:
     double getVelocity() const;
     void setVelocity(double t_velocity);
 };
+
+
+Person::Person()
+{
+    m_is_tracked = true;
+    m_is_target = false;
+    m_velocity = 0;
+    m_gesture_begin = ros::Time(0);
+    m_absolute_position.x = m_absolute_position.y = m_absolute_position.z = 0;
+    m_skeleton = {};
+}
 
 
 Person::Person(const body_tracker_msgs::Skeleton& t_skeleton)
@@ -181,6 +193,7 @@ double Person::getVelocity() const
 {
     return m_velocity;
 }
+
 
 void Person::setVelocity(double t_velocity)
 {

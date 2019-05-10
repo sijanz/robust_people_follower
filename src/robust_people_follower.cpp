@@ -12,67 +12,107 @@
 #include "turtlebot.h"
 
 
-// TODO: global variables have to vanish; sadly, callback methods don't allow for parameters
-// ####### GLOBAL VARIABLES #######
+class RobustPeopleFollower
+{
+private:
 
-// instance of the turtlebot robot
-Turtlebot g_turtlebot;
+    // publisher
+    ros::Publisher m_velocity_command_pub;
+    ros::Publisher m_robot_velocity_pub;
+    ros::Publisher m_target_velocity_pub;
+    ros::Publisher m_robot_path_pub;
+    ros::Publisher m_target_path_pub;
 
-// list of persons in the frame
-std::vector<Person> g_tracked_persons;
+    // instance of the turtlebot robot
+    Turtlebot m_turtlebot;
 
-// stores the path of the robot
-nav_msgs::Path g_robot_path;
+    // list of persons in the frame
+    std::vector<Person> m_tracked_persons;
 
-// stores the path of the target
-nav_msgs::Path g_target_path;
+    // stores the path of the robot
+    nav_msgs::Path m_robot_path;
 
-// sequence number for robot path
-uint32_t g_seq_robot = 0;
+    // stores the path of the target
+    nav_msgs::Path m_target_path;
 
-// sequence number for target path
-uint32_t g_seq_target = 0;
+    // sequence number for robot path
+    uint32_t m_seq_robot;
 
+    // sequence number for target path
+    uint32_t m_seq_target;
 
-// ####### FUNCTION PROTOTYPES #######
+    // object that holds target information
+    Person m_target;
 
-void debugPrintout(const Person& target);
+    // list that holds goals, at maximum 10
+    std::deque<geometry_msgs::Point32> goal_list;
 
-void odometryCallback(const nav_msgs::Odometry::ConstPtr& msg);
+    int last_goal_time;
 
-void skeletonCallback(const body_tracker_msgs::Skeleton::ConstPtr& msg);
+    // frequency of the main loop
+    const double FREQUENCY = 10.0;
+
+    void debugPrintout();
+
+public:
+    ros::NodeHandle nh;
+    ros::Subscriber odom_sub;
+    ros::Subscriber skeleton_sub;
+
+    RobustPeopleFollower();
+    ~RobustPeopleFollower();
+    void runLoop();
+    void odometryCallback(const nav_msgs::Odometry::ConstPtr& msg);
+    void skeletonCallback(const body_tracker_msgs::Skeleton::ConstPtr& msg);
+};
 
 
 // ####### ENTRY POINT #######
 
 int main(int argc, char **argv)
 {
-    ros::init(argc, argv, "body_tracker");
-    ros::NodeHandle nh;
-    ros::Subscriber odom_sub = nh.subscribe("/odom", 10, odometryCallback);
-    ros::Subscriber skeleton_sub = nh.subscribe("/body_tracker/skeleton", 10, skeletonCallback);
+    ros::init(argc, argv, "robust_people_follower");
+    RobustPeopleFollower robust_people_follower;
+    robust_people_follower.odom_sub = robust_people_follower.nh.subscribe("/odom", 10,
+                                                                          &RobustPeopleFollower::odometryCallback,
+                                                                          &robust_people_follower);
+    robust_people_follower.skeleton_sub = robust_people_follower.nh.subscribe("/body_tracker/skeleton", 10,
+                                                                              &RobustPeopleFollower::skeletonCallback,
+                                                                              &robust_people_follower);
+    robust_people_follower.runLoop();
 
-    ros::Publisher velocity_command_pub = nh.advertise<geometry_msgs::Twist>("/mobile_base/commands/velocity", 1000);
-    ros::Publisher robot_velocity_pub = nh.advertise<std_msgs::Float32>("robust_people_follower/robot_velocity", 1000);
-    ros::Publisher target_velocity_pub = nh.advertise<std_msgs::Float32>("robust_people_follower/target_velocity",
-
-                                                                         1000);
-    // FIXME: adjust path publisher queue size
-    ros::Publisher robot_path_pub = nh.advertise<nav_msgs::Path>("robust_people_follower/robot_path", 1000);
-    ros::Publisher target_path_pub = nh.advertise<nav_msgs::Path>("robust_people_follower/target_path", 1000);
+    return 0;
+}
 
 
-    // object that holds target information
-    Person target(body_tracker_msgs::Skeleton{});
+// ####### METHOD DEFINITIONS #######
 
-    // list that holds goals, at maximum 10
-    std::deque<geometry_msgs::Point32> goal_list;
+RobustPeopleFollower::RobustPeopleFollower()
+{
+    m_velocity_command_pub = nh.advertise<geometry_msgs::Twist>("/mobile_base/commands/velocity", 1000);
+    m_robot_velocity_pub = nh.advertise<std_msgs::Float32>("robust_people_follower/robot_velocity", 1000);
+    m_target_velocity_pub = nh.advertise<std_msgs::Float32>("robust_people_follower/target_velocity", 1000);
+    m_robot_path_pub = nh.advertise<nav_msgs::Path>("robust_people_follower/robot_path", 1000);
+    m_target_path_pub = nh.advertise<nav_msgs::Path>("robust_people_follower/target_path", 1000);
+    m_turtlebot = {};
+    m_tracked_persons = {};
+    m_robot_path = m_target_path = {};
+    m_seq_robot = m_seq_target = {};
+    goal_list = {};
+    last_goal_time = 0;
+}
 
-    int last_goal_time = 0;
 
-    // frequency of the main loop
-    const double FREQUENCY = 10.0;
+RobustPeopleFollower::~RobustPeopleFollower()
+{
+    ROS_INFO("robust_people_follower shutting down");
+    odom_sub.shutdown();
+    skeleton_sub.shutdown();
+}
 
+
+void RobustPeopleFollower::runLoop()
+{
     ros::Rate loop_rate(FREQUENCY);
 
     while (ros::ok()) {
@@ -80,21 +120,21 @@ int main(int argc, char **argv)
         // processes callbacks
         ros::spinOnce();
 
-        g_turtlebot.calculateVelocity(FREQUENCY);
+        m_turtlebot.calculateVelocity(FREQUENCY);
 
         // set variables for target
-        for (std::vector<Person>::iterator iter = g_tracked_persons.begin(); iter != g_tracked_persons.end(); ++iter) {
-            if (iter->isTarget()) {
-                target.setSkeleton(iter->getSkeleton());
-                target.setAbsolutePosition(iter->getAbsolutePosition());
-                target.calculateVelocity(FREQUENCY);
+        for (auto& p : m_tracked_persons) {
+            if (p.isTarget()) {
+                m_target.setSkeleton(p.getSkeleton());
+                m_target.setAbsolutePosition(p.getAbsolutePosition());
+                m_target.calculateVelocity(FREQUENCY);
                 break;
             }
         }
 
         // add new goal every second
         if (last_goal_time != ros::Time::now().sec) {
-            goal_list.emplace_back(target.getAbsolutePosition());
+            goal_list.emplace_back(m_target.getAbsolutePosition());
             last_goal_time = ros::Time::now().sec;
         }
         if (goal_list.size() > 10)
@@ -102,113 +142,109 @@ int main(int argc, char **argv)
 
         // TODO: implement actual searching
         // robot loses target
-        if (target.getDistance() == 0 && target.getYDeviation() == 0) {
-            g_turtlebot.setStatus(SEARCHING);
-            target.setVelocity(0.0);
+        if (m_target.getDistance() == 0 && m_target.getYDeviation() == 0) {
+            m_turtlebot.setStatus(SEARCHING);
+            m_target.setVelocity(0.0);
         }
 
         // set pose for target
         geometry_msgs::PoseStamped pose_stamped;
-        pose_stamped.header.seq = g_seq_target;
+        pose_stamped.header.seq = m_seq_target;
         pose_stamped.header.stamp = ros::Time::now();
         pose_stamped.header.frame_id = "odom";
-        pose_stamped.pose.position.x = target.getAbsolutePosition().x;
-        pose_stamped.pose.position.y = target.getAbsolutePosition().y;
-        pose_stamped.pose.position.z = target.getAbsolutePosition().z;
-        g_target_path.poses.push_back(pose_stamped);
+        pose_stamped.pose.position.x = m_target.getAbsolutePosition().x;
+        pose_stamped.pose.position.y = m_target.getAbsolutePosition().y;
+        pose_stamped.pose.position.z = m_target.getAbsolutePosition().z;
+        m_target_path.poses.push_back(pose_stamped);
 
-        debugPrintout(target);
+        debugPrintout();
 
         // move the robot
         // message to store velocity commands in
         geometry_msgs::Twist msg;
 
         // rotation
-        if (target.getYDeviation() < -150) {
-            msg.angular.z = -0.0025 * std::abs(target.getYDeviation());
+        if (m_target.getYDeviation() < -50) {
+            msg.angular.z = -0.0025 * std::abs(m_target.getYDeviation());
             ROS_INFO("[TURNING LEFT at %f]", msg.angular.z);
-        } else if (target.getYDeviation() > 150) {
-            msg.angular.z = 0.0025 * target.getYDeviation();
+        } else if (m_target.getYDeviation() > 50) {
+            msg.angular.z = 0.0025 * m_target.getYDeviation();
             ROS_INFO("[TURNING RIGHT at %f]", msg.angular.z);
         } else
             msg.angular.z = 0;
 
         // moving straight
-        if (target.getDistance() > 1800) {
-            msg.linear.x = 0.32 * (target.getDistance() / 1000) - 0.576;
+        if (m_target.getDistance() > 1800) {
+            msg.linear.x = 0.32 * (m_target.getDistance() / 1000) - 0.576;
             ROS_INFO("[MOVING FORWARD AT %f]", msg.linear.x);
-        } else if (target.getDistance() < 1000 && target.getDistance() > 0) {
-            msg.linear.x = 2 * (target.getDistance() / 1000) - 2;
+        } else if (m_target.getDistance() < 1000 && m_target.getDistance() > 0) {
+            msg.linear.x = 2 * (m_target.getDistance() / 1000) - 2;
             ROS_INFO("[MOVING BACKWARDS AT %f]", msg.linear.x);
         }
 
-        velocity_command_pub.publish(msg);
+        m_velocity_command_pub.publish(msg);
 
         // set and publish robot path
-        g_robot_path.header.seq = g_seq_robot;
-        g_robot_path.header.stamp = ros::Time::now();
-        g_robot_path.header.frame_id = "odom";
-        robot_path_pub.publish(g_robot_path);
-        ++g_seq_robot;
+        m_robot_path.header.seq = m_seq_robot;
+        m_robot_path.header.stamp = ros::Time::now();
+        m_robot_path.header.frame_id = "odom";
+        m_robot_path_pub.publish(m_robot_path);
+        ++m_seq_robot;
 
         // set and publish target path
-        g_target_path.header.seq = g_seq_target;
-        g_target_path.header.stamp = ros::Time::now();
-        g_target_path.header.frame_id = "odom";
-        target_path_pub.publish(g_target_path);
-        ++g_seq_target;
+        m_target_path.header.seq = m_seq_target;
+        m_target_path.header.stamp = ros::Time::now();
+        m_target_path.header.frame_id = "odom";
+        m_target_path_pub.publish(m_target_path);
+        ++m_seq_target;
 
         // set and publish robot velocity
         std_msgs::Float32 turtlebot_velocity;
-        turtlebot_velocity.data = g_turtlebot.getVelocity();
-        robot_velocity_pub.publish(turtlebot_velocity);
+        turtlebot_velocity.data = m_turtlebot.getVelocity();
+        m_robot_velocity_pub.publish(turtlebot_velocity);
 
         // set and publish target velocity
         std_msgs::Float32 target_velocity;
-        target_velocity.data = target.getVelocity();
-        target_velocity_pub.publish(target_velocity);
+        target_velocity.data = m_target.getVelocity();
+        m_target_velocity_pub.publish(target_velocity);
 
         // set old position to calculate velocity
-        g_turtlebot.updateOldPose();
-        target.updateOldPosition();
+        m_turtlebot.updateOldPose();
+        m_target.updateOldPosition();
 
         // FIXME: throws seg fault if list members get deleted
         // manage list
-        if (!g_tracked_persons.empty()) {
-            for (std::vector<Person>::iterator iter = g_tracked_persons.begin();
-                 iter != g_tracked_persons.end(); ++iter) {
-                if (iter->getDistance() == 0) {
-                    iter->setTrackingStatus(false);
-                    iter->setTarget(false);
+        if (!m_tracked_persons.empty()) {
+            for (auto& p : m_tracked_persons) {
+                if (p.getDistance() == 0) {
+                    p.setTrackingStatus(false);
+                    p.setTarget(false);
                 }
             }
         }
 
         loop_rate.sleep();
     }
-    return 0;
 }
 
 
 /**
  * @brief Prints out debugging information including the robot and the tracked persons.
- * @param t_target_distance distance to target
- * @param t_target_y_deviation deviation on the y-axis of the target
  */
-void debugPrintout(const Person& target)
+void RobustPeopleFollower::debugPrintout()
 {
     system("clear");
 
-    g_turtlebot.printTurtlebotInfo();
+    m_turtlebot.printTurtlebotInfo();
 
     ROS_INFO("target information:");
-    target.printVerbosePersonInfo();
+    m_target.printVerbosePersonInfo();
 
-    ROS_INFO("list size: %lu", g_tracked_persons.size());
-    if (!g_tracked_persons.empty()) {
-        for (std::vector<Person>::iterator iter = g_tracked_persons.begin(); iter != g_tracked_persons.end(); ++iter) {
-            if (iter->isTracked()) {
-                iter->printPersonInfo();
+    ROS_INFO("list size: %lu", m_tracked_persons.size());
+    if (!m_tracked_persons.empty()) {
+        for (auto& p : m_tracked_persons) {
+            if (p.isTracked()) {
+                p.printPersonInfo();
             }
         }
     }
@@ -219,7 +255,7 @@ void debugPrintout(const Person& target)
  * @brief Sets odometry fields with data from the subscribed odometry topic.
  * @param msg the message from the subscribed topic
  */
-void odometryCallback(const nav_msgs::Odometry::ConstPtr& msg)
+void RobustPeopleFollower::odometryCallback(const nav_msgs::Odometry::ConstPtr& msg)
 {
     geometry_msgs::Pose pose;
     pose.position.x = msg->pose.pose.position.x;
@@ -229,10 +265,10 @@ void odometryCallback(const nav_msgs::Odometry::ConstPtr& msg)
     pose.orientation.y = msg->pose.pose.orientation.y;
     pose.orientation.z = msg->pose.pose.orientation.z;
     pose.orientation.w = msg->pose.pose.orientation.w;
-    g_turtlebot.setPose(pose);
+    m_turtlebot.setPose(pose);
 
     geometry_msgs::PoseStamped pose_stamped;
-    pose_stamped.header.seq = g_seq_robot;
+    pose_stamped.header.seq = m_seq_robot;
     pose_stamped.header.stamp = ros::Time::now();
     pose_stamped.header.frame_id = "odom";
     pose_stamped.pose.position.x = msg->pose.pose.position.x;
@@ -242,7 +278,7 @@ void odometryCallback(const nav_msgs::Odometry::ConstPtr& msg)
     pose_stamped.pose.orientation.y = msg->pose.pose.orientation.y;
     pose_stamped.pose.orientation.z = msg->pose.pose.orientation.z;
     pose_stamped.pose.orientation.w = msg->pose.pose.orientation.w;
-    g_robot_path.poses.push_back(pose_stamped);
+    m_robot_path.poses.push_back(pose_stamped);
 }
 
 
@@ -250,7 +286,7 @@ void odometryCallback(const nav_msgs::Odometry::ConstPtr& msg)
  * @brief Manages the list of tracked persons with data received from the skeleton topic.
  * @param msg the message from the subscribed topic
  */
-void skeletonCallback(const body_tracker_msgs::Skeleton::ConstPtr& msg)
+void RobustPeopleFollower::skeletonCallback(const body_tracker_msgs::Skeleton::ConstPtr& msg)
 {
 
     // save data from message
@@ -275,35 +311,35 @@ void skeletonCallback(const body_tracker_msgs::Skeleton::ConstPtr& msg)
     skeleton.joint_position_right_hand = msg->joint_position_right_hand;
 
     bool found = false;
-    for (std::vector<Person>::iterator iter = g_tracked_persons.begin(); iter != g_tracked_persons.end(); ++iter) {
-        if (iter->getId() == skeleton.body_id) {
+    for (auto& p : m_tracked_persons) {
+        if (p.getId() == skeleton.body_id) {
             found = true;
-            if (iter->isTarget()) {
-                iter->setSkeleton(skeleton);
-                iter->calculateAbsolutePosition(g_turtlebot.getPose().position.x, g_turtlebot.getPose().position.y,
-                                                g_turtlebot.getAngle());
+            if (p.isTarget()) {
+                p.setSkeleton(skeleton);
+                p.calculateAbsolutePosition(m_turtlebot.getPose().position.x, m_turtlebot.getPose().position.y,
+                                            m_turtlebot.getAngle());
             } else {
 
                 // update information
-                iter->setSkeleton(skeleton);
+                p.setSkeleton(skeleton);
 
                 // FIXME: doesn't work as intended
                 // check for gestures
                 if (skeleton.gesture == 2) {
-                    if (iter->getGestureBegin() == 0) {
-                        iter->setGestureBegin(ros::Time::now());
+                    if (p.getGestureBegin() == 0) {
+                        p.setGestureBegin(ros::Time::now());
                     }
                 } else {
-                    if (iter->getGestureBegin() != 0) {
+                    if (p.getGestureBegin() != 0) {
 
                         // TODO: figure out how to play a sound
                         // new target selected after 3 seconds of closing both hands
-                        if (ros::Time::now().sec - iter->getGestureBegin() >= 3) {
-                            iter->setTarget(true);
-                            g_turtlebot.setStatus(FOLLOWING);
+                        if (ros::Time::now().sec - p.getGestureBegin() >= 3) {
+                            p.setTarget(true);
+                            m_turtlebot.setStatus(FOLLOWING);
 
                             // reset gesture beginning time
-                            iter->setGestureBegin(ros::Time(0));
+                            p.setGestureBegin(ros::Time(0));
                         }
                     }
                 }
@@ -313,6 +349,6 @@ void skeletonCallback(const body_tracker_msgs::Skeleton::ConstPtr& msg)
 
     // save new person if new id has been detected
     if (!found) {
-        g_tracked_persons.emplace_back(Person(skeleton));
+        m_tracked_persons.emplace_back(Person(skeleton));
     }
 }
