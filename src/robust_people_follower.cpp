@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <cmath>
+#include <deque>
 
 #include <ros/ros.h>
 #include <body_tracker_msgs/Skeleton.h>
@@ -48,19 +49,26 @@ int main(int argc, char **argv)
 {
     ros::init(argc, argv, "body_tracker");
     ros::NodeHandle nh;
-
     ros::Subscriber odom_sub = nh.subscribe("/odom", 10, odometryCallback);
     ros::Subscriber skeleton_sub = nh.subscribe("/body_tracker/skeleton", 10, skeletonCallback);
 
     ros::Publisher velocity_command_pub = nh.advertise<geometry_msgs::Twist>("/mobile_base/commands/velocity", 1000);
-    ros::Publisher robot_path_pub = nh.advertise<nav_msgs::Path>("robust_people_follower/robot_path", 1000);
     ros::Publisher robot_velocity_pub = nh.advertise<std_msgs::Float32>("robust_people_follower/robot_velocity", 1000);
-    ros::Publisher target_path_pub = nh.advertise<nav_msgs::Path>("robust_people_follower/target_path", 1000);
     ros::Publisher target_velocity_pub = nh.advertise<std_msgs::Float32>("robust_people_follower/target_velocity",
+
                                                                          1000);
+    // FIXME: adjust path publisher queue size
+    ros::Publisher robot_path_pub = nh.advertise<nav_msgs::Path>("robust_people_follower/robot_path", 1000);
+    ros::Publisher target_path_pub = nh.advertise<nav_msgs::Path>("robust_people_follower/target_path", 1000);
+
 
     // object that holds target information
     Person target(body_tracker_msgs::Skeleton{});
+
+    // list that holds goals, at maximum 10
+    std::deque<geometry_msgs::Point32> goal_list;
+
+    int last_goal_time = 0;
 
     // frequency of the main loop
     const double FREQUENCY = 10.0;
@@ -80,12 +88,22 @@ int main(int argc, char **argv)
                 target.setSkeleton(iter->getSkeleton());
                 target.setAbsolutePosition(iter->getAbsolutePosition());
                 target.calculateVelocity(FREQUENCY);
+                break;
             }
         }
 
+        // add new goal every second
+        if (last_goal_time != ros::Time::now().sec) {
+            goal_list.emplace_back(target.getAbsolutePosition());
+            last_goal_time = ros::Time::now().sec;
+        }
+        if (goal_list.size() > 10)
+            goal_list.pop_front();
+
+        // TODO: implement actual searching
         // robot loses target
         if (target.getDistance() == 0 && target.getYDeviation() == 0) {
-            g_turtlebot.setStatus(WAITING);
+            g_turtlebot.setStatus(SEARCHING);
             target.setVelocity(0.0);
         }
 
