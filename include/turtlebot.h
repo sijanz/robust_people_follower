@@ -28,6 +28,7 @@ private:
 public:
     Turtlebot();
     void printTurtlebotInfo() const;
+    int getStatus() const;
     void setStatus(int t_status);
     double getVelocity() const;
     geometry_msgs::Pose getPose();
@@ -79,6 +80,12 @@ void Turtlebot::printTurtlebotInfo() const
     ROS_INFO("    z: %f", m_pose.orientation.z);
     ROS_INFO("    w: %f", m_pose.orientation.w);
     ROS_INFO("  angle: %f\n", m_angle);
+}
+
+
+int Turtlebot::getStatus() const
+{
+    return m_status;
 }
 
 

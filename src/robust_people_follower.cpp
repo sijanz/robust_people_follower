@@ -179,6 +179,12 @@ void RobustPeopleFollowerNode::runLoop()
             ROS_INFO("[MOVING BACKWARDS AT %f]", msg.linear.x);
         }
 
+        // stop robot if target made gesture
+        if (m_turtlebot.getStatus() == WAITING) {
+            msg.angular.z = 0.0;
+            msg.linear.x = 0.0;
+        }
+
         m_velocity_command_pub.publish(msg);
 
         // set and publish robot path
@@ -237,10 +243,12 @@ void RobustPeopleFollowerNode::debugPrintout()
     ROS_INFO("target information:");
     m_target.printVerbosePersonInfo();
 
+    /*
     ROS_INFO("goal list:");
     for (auto& g : m_goal_list) {
         ROS_INFO("[%f, %f]", g.x, g.y);
     }
+     */
 
     ROS_INFO("list size: %lu", m_tracked_persons.size());
     if (!m_tracked_persons.empty()) {
@@ -316,18 +324,46 @@ void RobustPeopleFollowerNode::skeletonCallback(const body_tracker_msgs::Skeleto
     for (auto& p : m_tracked_persons) {
         if (p.getId() == skeleton.body_id) {
             found = true;
+
+            // target
             if (p.isTarget()) {
                 p.setSkeleton(skeleton);
                 p.calculateAbsolutePosition(m_turtlebot.getPose().position.x, m_turtlebot.getPose().position.y,
                                             m_turtlebot.getAngle());
-            } else {
+
+                // check for gestures
+                if (skeleton.gesture == 2 && p.correctHandHeight()) {
+                    if (p.getGestureBegin() == 0) {
+                        p.setGestureBegin(ros::Time::now());
+                    }
+                } else {
+                    if (p.getGestureBegin() != 0) {
+
+                        // TODO: figure out how to play a sound
+                        // new target selected after 3 seconds of closing both hands
+                        if (ros::Time::now().sec - p.getGestureBegin() >= 3) {
+                            p.setTarget(false);
+                            m_target.setSkeleton({});
+                            m_target.setTarget(false);
+                            m_target.setVelocity(0.0);
+
+                            m_turtlebot.setStatus(WAITING);
+
+                            // reset gesture beginning time
+                            p.setGestureBegin(ros::Time(0));
+                        }
+                    }
+                }
+            }
+
+                // other persons
+            else {
 
                 // update information
                 p.setSkeleton(skeleton);
 
-                // FIXME: doesn't work as intended
                 // check for gestures
-                if (skeleton.gesture == 2) {
+                if (skeleton.gesture == 2 && p.correctHandHeight()) {
                     if (p.getGestureBegin() == 0) {
                         p.setGestureBegin(ros::Time::now());
                     }

@@ -42,6 +42,7 @@ public:
     void updateOldPosition();
     double getVelocity() const;
     void setVelocity(double t_velocity);
+    bool correctHandHeight() const;
 };
 
 
@@ -69,8 +70,8 @@ Person::Person(const body_tracker_msgs::Skeleton& t_skeleton)
 
 void Person::printPersonInfo() const
 {
-    ROS_INFO("id: %d, is target: %d, distance: %f, number of gestures: %d",
-             m_skeleton.body_id, m_is_target, m_skeleton.centerOfMass.x, m_skeleton.gesture);
+    ROS_INFO("id: %d, is target: %d, distance: %f, gestures: %d, height: %d",
+             m_skeleton.body_id, m_is_target, m_skeleton.centerOfMass.x, m_skeleton.gesture, correctHandHeight());
 }
 
 
@@ -198,6 +199,12 @@ double Person::getVelocity() const
 void Person::setVelocity(double t_velocity)
 {
     m_velocity = t_velocity;
+}
+
+
+bool Person::correctHandHeight() const
+{
+    return m_skeleton.joint_position_left_hand.z > m_skeleton.joint_position_spine_top.z;
 }
 
 
