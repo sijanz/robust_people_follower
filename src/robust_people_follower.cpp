@@ -45,9 +45,9 @@ private:
     Person m_target;
 
     // list that holds goals, at maximum 10
-    std::deque<geometry_msgs::Point32> goal_list;
+    std::deque<geometry_msgs::Point32> m_goal_list;
 
-    int last_goal_time;
+    int m_last_goal_time;
 
     // frequency of the main loop
     const double FREQUENCY = 10.0;
@@ -98,8 +98,8 @@ RobustPeopleFollower::RobustPeopleFollower()
     m_tracked_persons = {};
     m_robot_path = m_target_path = {};
     m_seq_robot = m_seq_target = {};
-    goal_list = {};
-    last_goal_time = 0;
+    m_goal_list = {};
+    m_last_goal_time = 0;
 }
 
 
@@ -133,16 +133,16 @@ void RobustPeopleFollower::runLoop()
         }
 
         // add new goal every second
-        if (last_goal_time != ros::Time::now().sec) {
-            goal_list.emplace_back(m_target.getAbsolutePosition());
-            last_goal_time = ros::Time::now().sec;
+        if (m_target.getDistance() != 0.0 && m_last_goal_time != ros::Time::now().sec) {
+            m_goal_list.emplace_back(m_target.getAbsolutePosition());
+            m_last_goal_time = ros::Time::now().sec;
         }
-        if (goal_list.size() > 10)
-            goal_list.pop_front();
+        if (m_goal_list.size() > 10)
+            m_goal_list.pop_front();
 
         // TODO: implement actual searching
         // robot loses target
-        if (m_target.getDistance() == 0 && m_target.getYDeviation() == 0) {
+        if (m_target.getDistance() == 0.0 && m_target.getYDeviation() == 0.0) {
             m_turtlebot.setStatus(SEARCHING);
             m_target.setVelocity(0.0);
         }
@@ -177,7 +177,7 @@ void RobustPeopleFollower::runLoop()
         if (m_target.getDistance() > 1800) {
             msg.linear.x = 0.32 * (m_target.getDistance() / 1000) - 0.576;
             ROS_INFO("[MOVING FORWARD AT %f]", msg.linear.x);
-        } else if (m_target.getDistance() < 1000 && m_target.getDistance() > 0) {
+        } else if (m_target.getDistance() < 1000 && m_target.getDistance() > 0.0) {
             msg.linear.x = 2 * (m_target.getDistance() / 1000) - 2;
             ROS_INFO("[MOVING BACKWARDS AT %f]", msg.linear.x);
         }
@@ -239,6 +239,11 @@ void RobustPeopleFollower::debugPrintout()
 
     ROS_INFO("target information:");
     m_target.printVerbosePersonInfo();
+
+    ROS_INFO("goal list:");
+    for (auto& g : m_goal_list) {
+        ROS_INFO("[%f, %f]", g.x, g.y);
+    }
 
     ROS_INFO("list size: %lu", m_tracked_persons.size());
     if (!m_tracked_persons.empty()) {
