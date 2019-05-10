@@ -12,7 +12,7 @@
 #include "turtlebot.h"
 
 
-class RobustPeopleFollower
+class RobustPeopleFollowerNode
 {
 private:
 
@@ -59,8 +59,8 @@ public:
     ros::Subscriber odom_sub;
     ros::Subscriber skeleton_sub;
 
-    RobustPeopleFollower();
-    ~RobustPeopleFollower();
+    RobustPeopleFollowerNode();
+    ~RobustPeopleFollowerNode();
     void runLoop();
     void odometryCallback(const nav_msgs::Odometry::ConstPtr& msg);
     void skeletonCallback(const body_tracker_msgs::Skeleton::ConstPtr& msg);
@@ -72,14 +72,11 @@ public:
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "robust_people_follower");
-    RobustPeopleFollower robust_people_follower;
-    robust_people_follower.odom_sub = robust_people_follower.nh.subscribe("/odom", 10,
-                                                                          &RobustPeopleFollower::odometryCallback,
-                                                                          &robust_people_follower);
-    robust_people_follower.skeleton_sub = robust_people_follower.nh.subscribe("/body_tracker/skeleton", 10,
-                                                                              &RobustPeopleFollower::skeletonCallback,
-                                                                              &robust_people_follower);
-    robust_people_follower.runLoop();
+    RobustPeopleFollowerNode node;
+    node.odom_sub = node.nh.subscribe("/odom", 10, &RobustPeopleFollowerNode::odometryCallback, &node);
+    node.skeleton_sub =
+            node.nh.subscribe("/body_tracker/skeleton", 10, &RobustPeopleFollowerNode::skeletonCallback, &node);
+    node.runLoop();
 
     return 0;
 }
@@ -87,7 +84,7 @@ int main(int argc, char **argv)
 
 // ####### METHOD DEFINITIONS #######
 
-RobustPeopleFollower::RobustPeopleFollower()
+RobustPeopleFollowerNode::RobustPeopleFollowerNode()
 {
     m_velocity_command_pub = nh.advertise<geometry_msgs::Twist>("/mobile_base/commands/velocity", 1000);
     m_robot_velocity_pub = nh.advertise<std_msgs::Float32>("robust_people_follower/robot_velocity", 1000);
@@ -103,7 +100,7 @@ RobustPeopleFollower::RobustPeopleFollower()
 }
 
 
-RobustPeopleFollower::~RobustPeopleFollower()
+RobustPeopleFollowerNode::~RobustPeopleFollowerNode()
 {
     ROS_INFO("robust_people_follower shutting down");
     odom_sub.shutdown();
@@ -111,7 +108,7 @@ RobustPeopleFollower::~RobustPeopleFollower()
 }
 
 
-void RobustPeopleFollower::runLoop()
+void RobustPeopleFollowerNode::runLoop()
 {
     ros::Rate loop_rate(FREQUENCY);
 
@@ -231,7 +228,7 @@ void RobustPeopleFollower::runLoop()
 /**
  * @brief Prints out debugging information including the robot and the tracked persons.
  */
-void RobustPeopleFollower::debugPrintout()
+void RobustPeopleFollowerNode::debugPrintout()
 {
     system("clear");
 
@@ -260,7 +257,7 @@ void RobustPeopleFollower::debugPrintout()
  * @brief Sets odometry fields with data from the subscribed odometry topic.
  * @param msg the message from the subscribed topic
  */
-void RobustPeopleFollower::odometryCallback(const nav_msgs::Odometry::ConstPtr& msg)
+void RobustPeopleFollowerNode::odometryCallback(const nav_msgs::Odometry::ConstPtr& msg)
 {
     geometry_msgs::Pose pose;
     pose.position.x = msg->pose.pose.position.x;
@@ -291,7 +288,7 @@ void RobustPeopleFollower::odometryCallback(const nav_msgs::Odometry::ConstPtr& 
  * @brief Manages the list of tracked persons with data received from the skeleton topic.
  * @param msg the message from the subscribed topic
  */
-void RobustPeopleFollower::skeletonCallback(const body_tracker_msgs::Skeleton::ConstPtr& msg)
+void RobustPeopleFollowerNode::skeletonCallback(const body_tracker_msgs::Skeleton::ConstPtr& msg)
 {
 
     // save data from message
