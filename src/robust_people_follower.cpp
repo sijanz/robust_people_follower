@@ -340,12 +340,16 @@ void RobustPeopleFollowerNode::skeletonCallback(const body_tracker_msgs::Skeleto
                     if (p.getGestureBegin() != 0) {
 
                         // TODO: figure out how to play a sound
-                        // new target selected after 3 seconds of closing both hands
+                        // target chooses to stop being followed
                         if (ros::Time::now().sec - p.getGestureBegin() >= 3) {
                             p.setTarget(false);
+
+                            // reset target's information
                             m_target.setSkeleton({});
                             m_target.setTarget(false);
                             m_target.setVelocity(0.0);
+                            m_target.setAbsolutePosition(geometry_msgs::Point32{});
+                            m_target.setGestureBegin(ros::Time::now());
 
                             m_turtlebot.setStatus(WAITING);
 
