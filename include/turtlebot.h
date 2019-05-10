@@ -28,7 +28,6 @@ private:
 public:
     Turtlebot();
     void printTurtlebotInfo() const;
-    int getStatus();
     void setStatus(int t_status);
     double getVelocity() const;
     geometry_msgs::Pose getPose();
@@ -48,6 +47,7 @@ Turtlebot::Turtlebot()
     m_velocity = 0;
     m_pose.position.x = m_pose.position.y = m_pose.position.z = 0;
     m_pose.orientation.x = m_pose.orientation.y = m_pose.orientation.z = m_pose.orientation.w = 0;
+    m_angle = 0;
 }
 
 
@@ -79,16 +79,6 @@ void Turtlebot::printTurtlebotInfo() const
     ROS_INFO("    z: %f", m_pose.orientation.z);
     ROS_INFO("    w: %f", m_pose.orientation.w);
     ROS_INFO("  angle: %f\n", m_angle);
-}
-
-
-/**
- * @brief Getter for the status of the roboter.
- * @return the status ({WAITING, FOLLOWING, SEARCHING})
- */
-int Turtlebot::getStatus()
-{
-    return m_status;
 }
 
 
