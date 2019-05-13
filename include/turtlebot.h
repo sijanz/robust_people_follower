@@ -199,7 +199,7 @@ double Turtlebot::getAngle() const
 }
 
 
-// TODO: make threshold variable
+// TODO: test, make smoother, make threshold variable
 geometry_msgs::Twist& Turtlebot::setVelocityCommand(const Person& t_target,
                                                     std::deque<geometry_msgs::PointStamped>& t_goal_list,
                                                     geometry_msgs::Twist& t_msg)
@@ -217,20 +217,6 @@ geometry_msgs::Twist& Turtlebot::setVelocityCommand(const Person& t_target,
         double angle_to_goal = atan2(inc_y, inc_x);
         double distance_to_goal = sqrt(pow(current_goal.point.x - m_pose.position.x, 2)
                                        + pow(current_goal.point.y - m_pose.position.y, 2));
-
-        /*
-        // DEBUG
-        system("clear");
-        ROS_INFO("distance to goal: %f", distance_to_goal);
-        ROS_INFO("abs theta: %f\n", std::abs(angle_to_goal - m_angle));
-        ROS_INFO("goal list:");
-
-
-
-        for (auto& g : t_goal_list) {
-            ROS_INFO("[%f, %f]", g.x, g.y);
-        }
-         */
 
         //if (t_target.getDistance() > 1800) {
         if (distance_to_goal < 0.3) {

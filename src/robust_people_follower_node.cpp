@@ -51,6 +51,8 @@
 class RobustPeopleFollowerNode
 {
 public:
+
+    // TODO: make members private
     ros::NodeHandle nh;
 
     // subscribers
@@ -117,6 +119,8 @@ private:
     void publishRobotGoals() const;
     void managePersonList();
     void manageGoalList();
+    void addNewGoal();
+    void updateTargetPath();
 };
 
 
@@ -170,50 +174,32 @@ void RobustPeopleFollowerNode::runLoop()
         // process callbacks
         ros::spinOnce();
 
+        // set the target's variables
         setTarget();
 
-        // add new goal every second if target is above a threshold distance
-        if (m_target.getDistance() > 1800 && m_last_goal_time != ros::Time::now().sec) {
-            geometry_msgs::PointStamped position;
-            position.header.stamp = ros::Time::now();
-            position.point.x = m_target.getAbsolutePosition().x;
-            position.point.y = m_target.getAbsolutePosition().y;
-            position.point.z = 0.0;
-            m_goal_list.emplace_back(position);
-            m_last_goal_time = ros::Time::now().sec;
-        }
-        if (m_goal_list.size() > 10)
-            m_goal_list.pop_front();
+        // add new goal to goal list
+        addNewGoal();
 
         // TODO: implement actual searching
         // robot loses target
         if (m_target.getDistance() == 0 && m_target.getYDeviation() == 0 &&
             m_turtlebot.getStatus() == Turtlebot::Status::FOLLOWING) {
             m_turtlebot.setStatus(Turtlebot::Status::SEARCHING);
-            m_target.setVelocity(0.0);
         }
 
-        // set pose for target
-        geometry_msgs::PoseStamped pose_stamped;
-        pose_stamped.header.seq = m_seq_target;
-        pose_stamped.header.stamp = ros::Time::now();
-        pose_stamped.header.frame_id = "odom";
-        pose_stamped.pose.position.x = m_target.getAbsolutePosition().x;
-        pose_stamped.pose.position.y = m_target.getAbsolutePosition().y;
-        pose_stamped.pose.position.z = m_target.getAbsolutePosition().z;
-        m_target_path.poses.push_back(pose_stamped);
+        // update path for target to be published
+        updateTargetPath();
 
         debugPrintout();
 
         // TODO: test
         // move the robot
-        // message to store velocity commands in
         /*
         if (m_target.getDistance() != 0) {
-            geometry_msgs::Twist msg;
-            msg = m_turtlebot.setVelocityCommand(m_target, m_goal_list, msg);
-            ROS_INFO("velocity message: linear: %f, angular: %f", msg.linear.x, msg.angular.z);
-            m_velocity_command_pub.publish(msg);
+            geometry_msgs::Twist speed;
+            speed = m_turtlebot.setVelocityCommand(m_target, m_goal_list, speed);
+            ROS_INFO("velocity message: linear: %f, angular: %f", speed.linear.x, speed.angular.z);
+            m_velocity_command_pub.publish(speed);
         }*/
 
 
@@ -231,6 +217,7 @@ void RobustPeopleFollowerNode::runLoop()
             p.updateOldPosition();
         }
 
+        // list management
         managePersonList();
 
         // TODO: test
@@ -588,6 +575,7 @@ void RobustPeopleFollowerNode::managePersonList()
 }
 
 
+// TODO: test
 void RobustPeopleFollowerNode::manageGoalList()
 {
     if (!m_goal_list.empty()) {
@@ -595,4 +583,35 @@ void RobustPeopleFollowerNode::manageGoalList()
         if (ros::Time::now().sec - g.header.stamp.sec > 5)
             m_goal_list.pop_front();
     }
+}
+
+
+void RobustPeopleFollowerNode::addNewGoal()
+{
+
+    // only if target is above threshold distance
+    if (m_target.getDistance() > 1800 && m_last_goal_time != ros::Time::now().sec) {
+        geometry_msgs::PointStamped position;
+        position.header.stamp = ros::Time::now();
+        position.point.x = m_target.getAbsolutePosition().x;
+        position.point.y = m_target.getAbsolutePosition().y;
+        position.point.z = 0.0;
+        m_goal_list.emplace_back(position);
+        m_last_goal_time = ros::Time::now().sec;
+    }
+    if (m_goal_list.size() > 10)
+        m_goal_list.pop_front();
+}
+
+
+void RobustPeopleFollowerNode::updateTargetPath()
+{
+    geometry_msgs::PoseStamped pose_stamped;
+    pose_stamped.header.seq = m_seq_target;
+    pose_stamped.header.stamp = ros::Time::now();
+    pose_stamped.header.frame_id = "odom";
+    pose_stamped.pose.position.x = m_target.getAbsolutePosition().x;
+    pose_stamped.pose.position.y = m_target.getAbsolutePosition().y;
+    pose_stamped.pose.position.z = m_target.getAbsolutePosition().z;
+    m_target_path.poses.push_back(pose_stamped);
 }
