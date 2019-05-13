@@ -6,36 +6,43 @@
 #include "person.h"
 
 
-#define WAITING 0
-#define FOLLOWING 1
-#define SEARCHING 2
-
-
 /**
  * Stores data related to the roboter.
  */
 class Turtlebot
 {
+public:
+
+    enum Status
+    {
+        WAITING = 0,
+        FOLLOWING = 1,
+        SEARCHING = 2
+    };
+
+    Turtlebot();
+    void printTurtlebotInfo() const;
+    Turtlebot::Status getStatus() const;
+    double getAngle() const;
+    geometry_msgs::Pose getPose();
+    void setStatus(Turtlebot::Status t_status);
+    void setPose(const geometry_msgs::Pose& t_pose);
+    void updateOldPose();
+    void calculateVelocity(double t_frequency);
+    geometry_msgs::Twist& setVelocityCommand(const Person& t_target,
+                                             std::deque<geometry_msgs::PointStamped>& t_goal_list,
+                                             geometry_msgs::Twist& t_msg);
+
 private:
-    int m_status;
+    Turtlebot::Status m_status;
     double m_velocity;
     geometry_msgs::Pose m_pose;
     geometry_msgs::Pose m_old_pose;
     double m_angle;
+    double m_current_linear;
+    double m_current_angular;
 
     void calculateAngle();
-
-public:
-    Turtlebot();
-    void printTurtlebotInfo() const;
-    int getStatus() const;
-    void setStatus(int t_status);
-    double getVelocity() const;
-    geometry_msgs::Pose getPose();
-    void setPose(const geometry_msgs::Pose& t_pose);
-    void updateOldPose();
-    void calculateVelocity(double t_frequency);
-    double getAngle() const;
 };
 
 
@@ -45,10 +52,11 @@ public:
 Turtlebot::Turtlebot()
 {
     m_status = WAITING;
-    m_velocity = 0;
-    m_pose.position.x = m_pose.position.y = m_pose.position.z = 0;
-    m_pose.orientation.x = m_pose.orientation.y = m_pose.orientation.z = m_pose.orientation.w = 0;
-    m_angle = 0;
+    m_velocity = 0.0;
+    m_pose.position.x = m_pose.position.y = m_pose.position.z = 0.0;
+    m_pose.orientation.x = m_pose.orientation.y = m_pose.orientation.z = m_pose.orientation.w = 0.0;
+    m_angle = 0.0;
+    m_current_linear = m_current_angular = 0.0;
 }
 
 
@@ -76,14 +84,11 @@ void Turtlebot::printTurtlebotInfo() const
     ROS_INFO("  position:");
     ROS_INFO("    x: %f", m_pose.position.x);
     ROS_INFO("    y: %f", m_pose.position.y);
-    ROS_INFO("  orientation:");
-    ROS_INFO("    z: %f", m_pose.orientation.z);
-    ROS_INFO("    w: %f", m_pose.orientation.w);
-    ROS_INFO("  angle: %f\n", m_angle);
+    ROS_INFO("  theta: %f\n", m_angle);
 }
 
 
-int Turtlebot::getStatus() const
+Turtlebot::Status Turtlebot::getStatus() const
 {
     return m_status;
 }
@@ -93,19 +98,9 @@ int Turtlebot::getStatus() const
  * @brief Setter for the status of the roboter.
  * @param t_status the new status
  */
-void Turtlebot::setStatus(const int t_status)
+void Turtlebot::setStatus(const Turtlebot::Status t_status)
 {
     m_status = t_status;
-}
-
-
-/**
- * @brief Getter for the velocity of the robot.
- * @return the velocity
- */
-double Turtlebot::getVelocity() const
-{
-    return m_velocity;
 }
 
 
@@ -157,15 +152,134 @@ void Turtlebot::calculateAngle()
 {
     tf::Quaternion q(m_pose.orientation.x, m_pose.orientation.y, m_pose.orientation.z, m_pose.orientation.w);
     tf::Matrix3x3 m(q);
-    double roll, pitch, yaw;
-    m.getRPY(roll, pitch, yaw);
-    m_angle = yaw;
+    double roll, pitch, theta;
+    m.getRPY(roll, pitch, theta);
+    m_angle = theta;
 }
 
 
 double Turtlebot::getAngle() const
 {
     return m_angle;
+}
+
+
+geometry_msgs::Twist& Turtlebot::setVelocityCommand(const Person& t_target,
+                                                    std::deque<geometry_msgs::PointStamped>& t_goal_list,
+                                                    geometry_msgs::Twist& t_msg)
+{
+    t_msg.linear.x = 0.0;
+    t_msg.angular.z = 0.0;
+
+    if (!t_goal_list.empty()) {
+        geometry_msgs::PointStamped& current_goal = t_goal_list.at(0);
+
+
+        double inc_x = current_goal.point.x - m_pose.position.x;
+        double inc_y = current_goal.point.y - m_pose.position.y;
+
+        double angle_to_goal = atan2(inc_y, inc_x);
+        double distance_to_goal = sqrt(pow(current_goal.point.x - m_pose.position.x, 2)
+                                       + pow(current_goal.point.y - m_pose.position.y, 2));
+
+        /*
+        // DEBUG
+        system("clear");
+        ROS_INFO("distance to goal: %f", distance_to_goal);
+        ROS_INFO("abs theta: %f\n", std::abs(angle_to_goal - m_angle));
+        ROS_INFO("goal list:");
+
+
+
+        for (auto& g : t_goal_list) {
+            ROS_INFO("[%f, %f]", g.x, g.y);
+        }
+         */
+
+        //if (t_target.getDistance() > 1800) {
+            if (distance_to_goal < 0.3) {
+
+                // input 40% less acceleration
+                t_msg.linear.x = m_current_linear - (m_current_linear / 100) * 40;
+                t_msg.angular.z = m_current_angular - (m_current_angular / 100) * 40;
+
+                t_goal_list.pop_front();
+
+                if (!t_goal_list.empty())
+                    current_goal = t_goal_list.at(0);
+
+
+            } else if (angle_to_goal - m_angle > 0.2)
+                t_msg.angular.z = 0.5 * (angle_to_goal - m_angle);
+            else if (angle_to_goal - m_angle < -0.2)
+                t_msg.angular.z = -0.5 * std::abs(angle_to_goal - m_angle);
+            else
+                t_msg.linear.x = 0.4;
+                //t_msg.linear.x = 0.32 * (t_target.getDistance() / 1000) - 0.576;
+
+            // move backwards if target is too near
+        } else if (t_target.getDistance() < 1000 && t_target.getDistance() > 0) {
+            t_msg.linear.x = 2 * (t_target.getDistance() / 1000) - 2;
+        }
+
+            /*// keep human in center if the distance is less than the threshold
+        else {
+            if (t_target.getYDeviation() < -50)
+                t_msg.angular.z = -0.0025 * std::abs(t_target.getYDeviation());
+            else if (t_target.getYDeviation() > 50)
+                t_msg.angular.z = 0.0025 * t_target.getYDeviation();
+        }*/
+        m_current_linear = t_msg.linear.x;
+        m_current_angular = t_msg.angular.z;
+
+        /*
+        // no goals
+    } else {
+        // angular velocity
+        if (t_target.getYDeviation() < -50) {
+            t_msg.angular.z = -0.0025 * std::abs(t_target.getYDeviation());
+        } else if (t_target.getYDeviation() > 50) {
+            t_msg.angular.z = 0.0025 * t_target.getYDeviation();
+        } else
+            t_msg.angular.z = 0;
+
+        // linear velocity
+        if (t_target.getDistance() < 1000 && t_target.getDistance() > 0.0) {
+            t_msg.linear.x = 2 * (t_target.getDistance() / 1000) - 2;
+        }
+    }
+*/
+
+    return t_msg;
+
+/*
+// stop robot if target made gesture
+if (m_status == WAITING) {
+    t_msg.angular.z = 0.0;
+    t_msg.linear.x = 0.0;
+} else {
+
+    // angular velocity
+    if (t_target.getYDeviation() < -50) {
+        t_msg.angular.z = -0.0025 * std::abs(t_target.getYDeviation());
+        ROS_INFO("[TURNING LEFT at %f]", t_msg.angular.z);
+    } else if (t_target.getYDeviation() > 50) {
+        t_msg.angular.z = 0.0025 * t_target.getYDeviation();
+        ROS_INFO("[TURNING RIGHT at %f]", t_msg.angular.z);
+    } else
+        t_msg.angular.z = 0;
+
+    // linear velocity
+    if (t_target.getDistance() > 1800) {
+        t_msg.linear.x = 0.32 * (t_target.getDistance() / 1000) - 0.576;
+        ROS_INFO("[MOVING FORWARD AT %f]", t_msg.linear.x);
+    } else if (t_target.getDistance() < 1000 && t_target.getDistance() > 0.0) {
+        t_msg.linear.x = 2 * (t_target.getDistance() / 1000) - 2;
+        ROS_INFO("[MOVING BACKWARDS AT %f]", t_msg.linear.x);
+    }
+}
+ */
+
 }
 
 
