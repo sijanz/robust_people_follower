@@ -226,7 +226,6 @@ void Person::calculateVelocity(double t_frequency)
 }
 
 
-// FIXME: doesn't work
 void Person::calculateAngle()
 {
     m_angle = std::atan2((m_absolute_position.y - m_old_absolute_position.y),

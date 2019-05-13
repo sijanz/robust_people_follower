@@ -170,8 +170,6 @@ void RobustPeopleFollowerNode::runLoop()
         // process callbacks
         ros::spinOnce();
 
-        m_turtlebot.calculateVelocity(LOOP_FREQUENCY);
-
         setTarget();
 
         // add new goal every second if target is above a threshold distance
@@ -300,6 +298,8 @@ void RobustPeopleFollowerNode::odometryCallback(const nav_msgs::Odometry::ConstP
     pose_stamped.pose.orientation.z = msg->pose.pose.orientation.z;
     pose_stamped.pose.orientation.w = msg->pose.pose.orientation.w;
     m_robot_path.poses.push_back(pose_stamped);
+
+    m_turtlebot.calculateVelocity(LOOP_FREQUENCY);
 }
 
 
@@ -337,12 +337,14 @@ void RobustPeopleFollowerNode::skeletonCallback(const body_tracker_msgs::Skeleto
         if (p.getId() == skeleton.body_id) {
             found = true;
 
+            // update information
+            p.setSkeleton(skeleton);
+            p.calculateAbsolutePosition(m_turtlebot.getPose().position.x, m_turtlebot.getPose().position.y,
+                                        m_turtlebot.getAngle());
+            p.calculateVelocity(LOOP_FREQUENCY);
+
             // target
             if (p.isTarget()) {
-                p.setSkeleton(skeleton);
-                p.calculateAbsolutePosition(m_turtlebot.getPose().position.x, m_turtlebot.getPose().position.y,
-                                            m_turtlebot.getAngle());
-                p.calculateVelocity(LOOP_FREQUENCY);
 
                 // check for gestures
                 if (skeleton.gesture == 2 && p.hasCorrectHandHeight()) {
@@ -376,12 +378,6 @@ void RobustPeopleFollowerNode::skeletonCallback(const body_tracker_msgs::Skeleto
 
                 // other persons
             else {
-
-                // update information
-                p.setSkeleton(skeleton);
-                p.calculateAbsolutePosition(m_turtlebot.getPose().position.x, m_turtlebot.getPose().position.y,
-                                            m_turtlebot.getAngle());
-                p.calculateVelocity(LOOP_FREQUENCY);
 
                 // check for gestures
                 if (skeleton.gesture == 2 && p.hasCorrectHandHeight()) {
