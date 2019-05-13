@@ -132,7 +132,7 @@ void RobustPeopleFollowerNode::runLoop()
 
     while (ros::ok()) {
 
-        // processes callbacks
+        // process callbacks
         ros::spinOnce();
 
         m_turtlebot.calculateVelocity(LOOP_FREQUENCY);
@@ -173,16 +173,15 @@ void RobustPeopleFollowerNode::runLoop()
         debugPrintout();
 
         // TODO: test
-        // FIXME
         // move the robot
         // message to store velocity commands in
-
+        /*
         if (m_target.getDistance() != 0) {
             geometry_msgs::Twist msg;
             msg = m_turtlebot.setVelocityCommand(m_target, m_goal_list, msg);
             ROS_INFO("velocity message: linear: %f, angular: %f", msg.linear.x, msg.angular.z);
             m_velocity_command_pub.publish(msg);
-        }
+        }*/
 
 
         // publish markers to view in RViz
@@ -195,8 +194,13 @@ void RobustPeopleFollowerNode::runLoop()
         // set old position to calculate velocity
         m_turtlebot.updateOldPose();
         m_target.updateOldPosition();
+        for (auto& p : m_tracked_persons) {
+            p.updateOldPosition();
+        }
 
         managePersonList();
+
+        // TODO: test
         // manageGoalList();
 
         loop_rate.sleep();
@@ -264,6 +268,7 @@ void RobustPeopleFollowerNode::odometryCallback(const nav_msgs::Odometry::ConstP
 }
 
 
+// TODO: change logical structure
 /**
  * @brief Manages the list of tracked persons with data received from the skeleton topic.
  * @param msg the message from the subscribed topic
@@ -302,6 +307,7 @@ void RobustPeopleFollowerNode::skeletonCallback(const body_tracker_msgs::Skeleto
                 p.setSkeleton(skeleton);
                 p.calculateAbsolutePosition(m_turtlebot.getPose().position.x, m_turtlebot.getPose().position.y,
                                             m_turtlebot.getAngle());
+                p.calculateVelocity(LOOP_FREQUENCY);
 
                 // check for gestures
                 if (skeleton.gesture == 2 && p.hasCorrectHandHeight()) {
@@ -340,6 +346,7 @@ void RobustPeopleFollowerNode::skeletonCallback(const body_tracker_msgs::Skeleto
                 p.setSkeleton(skeleton);
                 p.calculateAbsolutePosition(m_turtlebot.getPose().position.x, m_turtlebot.getPose().position.y,
                                             m_turtlebot.getAngle());
+                p.calculateVelocity(LOOP_FREQUENCY);
 
                 // check for gestures
                 if (skeleton.gesture == 2 && p.hasCorrectHandHeight()) {
@@ -475,7 +482,7 @@ void RobustPeopleFollowerNode::publishPersonVectors() const
         vector.pose.orientation.z = q.getZ();
         vector.pose.orientation.w = q.getW();
 
-        vector.scale.x = 1.0 + VECTOR_LENGTH_FACTOR * p.getVelocity();
+        vector.scale.x = 0.5 + VECTOR_LENGTH_FACTOR * p.getVelocity();
         vector.scale.y = 0.1;
         vector.scale.z = 0.1;
 
@@ -541,10 +548,9 @@ void RobustPeopleFollowerNode::managePersonList()
     if (!m_tracked_persons.empty()) {
         auto it = m_tracked_persons.begin();
         while (it != m_tracked_persons.end()) {
-            if (it->getDistance() == 0 && it->getYDeviation() == 0) {
+            if (it->getDistance() == 0 && it->getYDeviation() == 0)
                 it = m_tracked_persons.erase(it);
-                ++it;
-            } else
+            else
                 ++it;
         }
     }
@@ -552,16 +558,7 @@ void RobustPeopleFollowerNode::managePersonList()
 
 
 void RobustPeopleFollowerNode::manageGoalList()
-{/*
-    if (!m_goal_list.empty()) {
-        auto it = m_goal_list.begin();
-        while (it != m_goal_list.end()) {
-            if (ros::Time::now().sec - it->header.stamp.sec > 5) {
-                it = m_goal_list.erase(it);
-                ++it;
-            } else
-                ++it;
-        }*/
+{
     if (!m_goal_list.empty()) {
         auto& g = m_goal_list[0];
         if (ros::Time::now().sec - g.header.stamp.sec > 5)

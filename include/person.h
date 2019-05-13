@@ -42,8 +42,6 @@ private:
     bool m_is_tracked;
     bool m_is_target;
     double m_velocity;
-
-    // TODO: calculate angle
     double m_angle;
 
     body_tracker_msgs::Skeleton m_skeleton;
@@ -90,7 +88,10 @@ void Person::printVerbosePersonInfo() const
 {
     ROS_INFO("id: %d", m_skeleton.body_id);
     ROS_INFO("  velocity: %f", m_velocity);
-    ROS_INFO("  position:");
+    ROS_INFO("  position (relative)");
+    ROS_INFO("    x: %f", m_skeleton.joint_position_spine_top.x);
+    ROS_INFO("    y: %f", m_skeleton.joint_position_spine_top.y);
+    ROS_INFO("  position (absolute):");
     ROS_INFO("    x: %f", m_absolute_position.x);
     ROS_INFO("    y: %f", m_absolute_position.y);
     ROS_INFO("  theta: %f", m_angle);
@@ -175,6 +176,8 @@ void Person::calculateAbsolutePosition(double t_robot_x, double t_robot_y, doubl
 {
     m_absolute_position.x = t_robot_x + cos(t_robot_angle) * m_skeleton.joint_position_spine_top.x -
                             sin(t_robot_angle) * m_skeleton.joint_position_spine_top.y;
+
+    // FIXME: has to be inverted
     m_absolute_position.y = t_robot_y + sin(t_robot_angle) * m_skeleton.joint_position_spine_top.x -
                             cos(t_robot_angle) * m_skeleton.joint_position_spine_top.y;
     calculateAngle();
@@ -191,16 +194,8 @@ void Person::calculateVelocity(double t_frequency)
 // FIXME: doesn't work
 void Person::calculateAngle()
 {
-    /*
-    double inc_x = m_absolute_position.x - m_old_absolute_position.x;
-    double inc_y = m_absolute_position.y - m_old_absolute_position.y;
-
-    m_angle = atan2(inc_y, inc_x);*/
-
-
-    m_angle = std::atan2(std::abs(m_absolute_position.y - m_old_absolute_position.y),
-                         std::abs(m_absolute_position.x - m_old_absolute_position.x));
-
+    m_angle = std::atan2((m_absolute_position.y - m_old_absolute_position.y),
+                         (m_absolute_position.x - m_old_absolute_position.x));
 }
 
 
