@@ -51,7 +51,6 @@ public:
     explicit Person(const body_tracker_msgs::Skeleton& t_skeleton);
     void printPersonInfo() const;
     void printVerbosePersonInfo() const;
-    bool isTracked() const;
     int getId() const;
     bool isTarget() const;
     body_tracker_msgs::Skeleton getSkeleton() const;
@@ -75,7 +74,6 @@ public:
     void setVelocity(double t_velocity);
 
 private:
-    bool m_is_tracked;
     bool m_is_target;
     double m_velocity;
     double m_angle;
@@ -89,7 +87,6 @@ private:
 
 Person::Person()
 {
-    m_is_tracked = true;
     m_is_target = false;
     m_velocity = 0.0;
     m_angle = 0.0;
@@ -102,7 +99,6 @@ Person::Person()
 
 Person::Person(const body_tracker_msgs::Skeleton& t_skeleton)
 {
-    m_is_tracked = true;
     m_is_target = false;
     m_velocity = 0.0;
     m_angle = 0.0;
@@ -135,11 +131,6 @@ void Person::printVerbosePersonInfo() const
     ROS_INFO("  y-deviation of center of mass: %f\n", m_skeleton.centerOfMass.y);
 }
 
-
-bool Person::isTracked() const
-{
-    return m_is_tracked;
-}
 
 
 int Person::getId() const
