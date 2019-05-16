@@ -106,9 +106,6 @@ private:
     // list that holds goals, at maximum 10
     std::deque<geometry_msgs::PointStamped> m_goal_list;
 
-    // is used if a goal has been set for the current second
-    int m_last_goal_time;
-
     // helper methods to keep the main loop tidy
     void debugPrintout();
     void setTarget();
@@ -121,6 +118,12 @@ private:
     void manageGoalList();
     void addNewGoal();
     void updateTargetPath();
+
+    // variables for setting a goal twice every second
+    int m_last_sec;
+    int m_current_sec;
+    bool m_in_first_half;
+    bool m_in_second_half;
 };
 
 
@@ -153,7 +156,8 @@ RobustPeopleFollowerNode::RobustPeopleFollowerNode(const std::string& t_name)
     m_robot_path = m_target_path = {};
     m_seq_robot = m_seq_target = {};
     m_goal_list = {};
-    m_last_goal_time = 0;
+    m_last_sec = m_current_sec = 0;
+    m_in_first_half = m_in_second_half = false;
 }
 
 
@@ -215,6 +219,34 @@ void RobustPeopleFollowerNode::runLoop()
                     marker.mesh_resource = "package://robust_people_follower/meshes/standing.dae";
 
                     m_visualization_pub.publish(marker);
+
+                    // TODO: testing
+                    visualization_msgs::Marker vector;
+                    vector.header.frame_id = "odom";
+                    vector.header.stamp = ros::Time();
+                    vector.ns = "vectors";
+                    vector.type = visualization_msgs::Marker::ARROW;
+                    vector.action = visualization_msgs::Marker::ADD;
+                    vector.pose.position.x = p.getAbsolutePosition().x;
+                    vector.pose.position.y = p.getAbsolutePosition().y;
+                    vector.pose.position.z = 1.3;
+
+                    tf::Quaternion q = tf::createQuaternionFromYaw(p.getAngle());
+                    vector.pose.orientation.x = q.getX();
+                    vector.pose.orientation.y = q.getY();
+                    vector.pose.orientation.z = q.getZ();
+                    vector.pose.orientation.w = q.getW();
+
+                    vector.scale.x = 0.5 + VECTOR_LENGTH_FACTOR * p.getVelocity();
+                    vector.scale.y = 0.1;
+                    vector.scale.z = 0.1;
+
+                    vector.color.a = 1.0;
+                    vector.color.r = 1.0;
+                    vector.color.g = 0.0;
+                    vector.color.b = 0.0;
+
+                    m_visualization_pub.publish(vector);
                 }
             }
         }
@@ -265,6 +297,7 @@ void RobustPeopleFollowerNode::runLoop()
 void RobustPeopleFollowerNode::debugPrintout()
 {
     system("clear");
+
     ROS_INFO("ROS time: %d", ros::Time::now().sec);
 
     m_turtlebot.printTurtlebotInfo();
@@ -280,9 +313,7 @@ void RobustPeopleFollowerNode::debugPrintout()
     ROS_INFO("list size: %lu", m_tracked_persons.size());
     if (!m_tracked_persons.empty()) {
         for (auto& p : m_tracked_persons) {
-            if (p.isTracked()) {
-                p.printPersonInfo();
-            }
+            p.printPersonInfo();
         }
     }
 }
@@ -610,7 +641,7 @@ void RobustPeopleFollowerNode::managePersonList()
 // TODO: test
 void RobustPeopleFollowerNode::manageGoalList()
 {
-    if (!m_goal_list.empty()) {
+    if (!m_goal_list.empty() && m_target.getDistance() > 0 && m_target.getDistance() < 1800) {
         auto& g = m_goal_list[0];
         if (ros::Time::now().sec - g.header.stamp.sec > 5)
             m_goal_list.pop_front();
@@ -622,17 +653,29 @@ void RobustPeopleFollowerNode::addNewGoal()
 {
 
     // only if target is above threshold distance
-    if (m_target.getDistance() > 1800 && m_last_goal_time != ros::Time::now().sec) {
+    if (m_target.getDistance() > 1800) {
         geometry_msgs::PointStamped position;
         position.header.stamp = ros::Time::now();
         position.point.x = m_target.getAbsolutePosition().x;
         position.point.y = m_target.getAbsolutePosition().y;
         position.point.z = 0.0;
-        m_goal_list.emplace_back(position);
-        m_last_goal_time = ros::Time::now().sec;
+
+        m_current_sec = ros::Time::now().sec;
+
+        if (ros::Time::now().nsec > 0 && ros::Time::now().nsec < 500000000 && !m_in_first_half) {
+            m_goal_list.emplace_back(position);
+            m_in_first_half = true;
+        }
+        if (ros::Time::now().nsec > 500000000 && !m_in_second_half) {
+            m_goal_list.emplace_back(position);
+            m_in_second_half = true;
+        }
+
+        if (m_last_sec != m_current_sec)
+            m_in_first_half = m_in_second_half = false;
+
+        m_last_sec = m_current_sec;
     }
-    if (m_goal_list.size() > 10)
-        m_goal_list.pop_front();
 }
 
 
