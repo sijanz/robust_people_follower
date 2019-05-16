@@ -56,6 +56,7 @@ public:
     bool isTarget() const;
     body_tracker_msgs::Skeleton getSkeleton() const;
     geometry_msgs::Point32 getAbsolutePosition() const;
+    geometry_msgs::Point32 getOldAbsolutePosition() const;
     int getGestureBegin() const;
     double getDistance() const;
     double getYDeviation() const;
@@ -177,6 +178,12 @@ geometry_msgs::Point32 Person::getAbsolutePosition() const
 }
 
 
+geometry_msgs::Point32 Person::getOldAbsolutePosition() const
+{
+    return m_old_absolute_position;
+}
+
+
 void Person::setAbsolutePosition(const geometry_msgs::Point32& t_absolute_position)
 {
     m_absolute_position = t_absolute_position;
@@ -209,12 +216,12 @@ double Person::getYDeviation() const
 
 void Person::calculateAbsolutePosition(double t_robot_x, double t_robot_y, double t_robot_angle)
 {
-    m_absolute_position.x = t_robot_x + cos(t_robot_angle) * m_skeleton.joint_position_spine_top.x -
-                            sin(t_robot_angle) * m_skeleton.joint_position_spine_top.y;
+    m_absolute_position.x = t_robot_x + (cos(t_robot_angle) * m_skeleton.joint_position_spine_top.x -
+                                         sin(t_robot_angle) * m_skeleton.joint_position_spine_top.y);
 
-    // FIXME: has to be inverted
-    m_absolute_position.y = t_robot_y + sin(t_robot_angle) * m_skeleton.joint_position_spine_top.x -
-                            cos(t_robot_angle) * m_skeleton.joint_position_spine_top.y;
+    m_absolute_position.y = t_robot_y + (sin(t_robot_angle) * m_skeleton.joint_position_spine_top.x +
+                                         cos(t_robot_angle) * m_skeleton.joint_position_spine_top.y);
+
     calculateAngle();
 }
 
