@@ -185,6 +185,38 @@ void RobustPeopleFollowerNode::runLoop()
         if (m_target.getDistance() == 0 && m_target.getYDeviation() == 0 &&
             m_turtlebot.getStatus() == Turtlebot::Status::FOLLOWING) {
             m_turtlebot.setStatus(Turtlebot::Status::SEARCHING);
+
+            for (auto& p : m_tracked_persons) {
+                if (p.isTarget()) {
+
+                    // publish estimation marker
+                    visualization_msgs::Marker marker;
+                    marker.header.frame_id = "odom";
+                    marker.header.stamp = ros::Time();
+                    marker.ns = "estimation";
+                    marker.type = visualization_msgs::Marker::MESH_RESOURCE;
+                    marker.action = visualization_msgs::Marker::ADD;
+                    marker.pose.position.x = m_target.getOldAbsolutePosition().x;
+                    marker.pose.position.y = m_target.getOldAbsolutePosition().y;
+                    marker.pose.position.z = 0.0;
+                    marker.pose.orientation.x = 0.0;
+                    marker.pose.orientation.y = 0.0;
+                    marker.pose.orientation.z = 0.0;
+                    marker.pose.orientation.w = 1.0;
+                    marker.scale.x = 1.0;
+                    marker.scale.y = 1.0;
+                    marker.scale.z = 1.0;
+
+                    marker.color.a = 0.5;
+                    marker.color.r = 0.0;
+                    marker.color.g = 0.0;
+                    marker.color.b = 1.0;
+
+                    marker.mesh_resource = "package://robust_people_follower/meshes/standing.dae";
+
+                    m_visualization_pub.publish(marker);
+                }
+            }
         }
 
         // update path for target to be published
@@ -194,13 +226,12 @@ void RobustPeopleFollowerNode::runLoop()
 
         // TODO: test
         // move the robot
-        /*
         if (m_target.getDistance() != 0) {
             geometry_msgs::Twist speed;
             speed = m_turtlebot.setVelocityCommand(m_target, m_goal_list, speed);
             ROS_INFO("velocity message: linear: %f, angular: %f", speed.linear.x, speed.angular.z);
             m_velocity_command_pub.publish(speed);
-        }*/
+        }
 
 
         // publish markers to view in RViz
@@ -221,7 +252,7 @@ void RobustPeopleFollowerNode::runLoop()
         managePersonList();
 
         // TODO: test
-        // manageGoalList();
+        manageGoalList();
 
         loop_rate.sleep();
     }
@@ -321,7 +352,7 @@ void RobustPeopleFollowerNode::skeletonCallback(const body_tracker_msgs::Skeleto
 
     bool found = false;
     for (auto& p : m_tracked_persons) {
-        if (p.getId() == skeleton.body_id) {
+        if (p.getId() == skeleton.body_id && p.getDistance() > 0) {
             found = true;
 
             // update information
@@ -430,6 +461,7 @@ void RobustPeopleFollowerNode::publishTargetPath()
 }
 
 
+// FIXME: delete old markers at (0,0)
 void RobustPeopleFollowerNode::publishPersonMarkers() const
 {
     std::vector<visualization_msgs::Marker> person_markers;
@@ -566,7 +598,7 @@ void RobustPeopleFollowerNode::managePersonList()
     if (!m_tracked_persons.empty()) {
         auto it = m_tracked_persons.begin();
         while (it != m_tracked_persons.end()) {
-            if (it->getDistance() == 0 && it->getYDeviation() == 0)
+            if (it->getDistance() == 0 && it->getYDeviation() == 0) // TODO: && !it->isTarget()
                 it = m_tracked_persons.erase(it);
             else
                 ++it;
