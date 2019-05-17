@@ -33,58 +33,9 @@
 *********************************************************************/
 
 
-#ifndef ROBUST_PEOPLE_FOLLOWER_TURTLEBOT_H
-#define ROBUST_PEOPLE_FOLLOWER_TURTLEBOT_H
-
-#include <math.h>
-#include <tf/transform_datatypes.h>
-#include <geometry_msgs/Pose.h>
-#include "person.h"
+#include "robust_people_follower/turtlebot.h"
 
 
-/**
- * Stores data related to the roboter.
- */
-class Turtlebot
-{
-public:
-
-    enum Status
-    {
-        WAITING = 0,
-        FOLLOWING = 1,
-        SEARCHING = 2
-    };
-
-    Turtlebot();
-    void printTurtlebotInfo() const;
-    Turtlebot::Status getStatus() const;
-    double getAngle() const;
-    geometry_msgs::Pose getPose();
-    void setStatus(Turtlebot::Status t_status);
-    void setPose(const geometry_msgs::Pose& t_pose);
-    void updateOldPose();
-    void calculateVelocity(double t_frequency);
-    geometry_msgs::Twist& setVelocityCommand(const Person& t_target,
-                                             std::deque<geometry_msgs::PointStamped>& t_goal_list,
-                                             geometry_msgs::Twist& t_msg);
-
-private:
-    Turtlebot::Status m_status;
-    double m_velocity;
-    geometry_msgs::Pose m_pose;
-    geometry_msgs::Pose m_old_pose;
-    double m_angle;
-    double m_current_linear;
-    double m_current_angular;
-
-    void calculateAngle();
-};
-
-
-/**
- * @brief Constructor.
- */
 Turtlebot::Turtlebot()
 {
     m_status = WAITING;
@@ -96,9 +47,6 @@ Turtlebot::Turtlebot()
 }
 
 
-/**
- * @brief Prints out information about the roboter.
- */
 void Turtlebot::printTurtlebotInfo() const
 {
     const char *status_string;
@@ -130,33 +78,18 @@ Turtlebot::Status Turtlebot::getStatus() const
 }
 
 
-/**
- * @brief Setter for the status of the roboter.
- * @param t_status the new status
- */
 void Turtlebot::setStatus(const Turtlebot::Status t_status)
 {
     m_status = t_status;
 }
 
 
-/**
- * @brief Getter for the pose of the robot, consisting of the position and orientation.
- * @return the pose
- */
 geometry_msgs::Pose Turtlebot::getPose()
 {
     return m_pose;
 }
 
 
-/**
- * @brief Setter for the pose of the robot.
- * @param t_position_x x-coordinate of the position
- * @param t_position_y y-coordinate of the position
- * @param t_orientation_z z-coordinate of the orientation
- * @param t_orientation_w w-coordinate of the orientation
- */
 void Turtlebot::setPose(const geometry_msgs::Pose& t_pose)
 {
     m_pose = t_pose;
@@ -164,19 +97,12 @@ void Turtlebot::setPose(const geometry_msgs::Pose& t_pose)
 }
 
 
-/**
- * @brief Updates the old pose of the robot for the calculation of the robot.
- */
 void Turtlebot::updateOldPose()
 {
     m_old_pose = m_pose;
 }
 
 
-/**
- * @brief Calculates the velocity of the robot.
- * @param frequency the frequency of the main loop, needed to get the time difference
- */
 void Turtlebot::calculateVelocity(double t_frequency)
 {
     m_velocity = sqrt(pow((m_old_pose.position.x - m_pose.position.x), 2) +
@@ -244,7 +170,6 @@ geometry_msgs::Twist& Turtlebot::setVelocityCommand(const Person& t_target,
                     if (!t_goal_list.empty())
                         current_goal = t_goal_list.at(0);
 
-
                     // FIXME: threshold must be smaller to negate pendulum effect
                 } else if (angle_to_goal - m_angle > 0.2)
                     //t_msg.angular.z = 1.0;
@@ -281,6 +206,3 @@ geometry_msgs::Twist& Turtlebot::setVelocityCommand(const Person& t_target,
 
     return t_msg;
 }
-
-
-#endif //ROBUST_PEOPLE_FOLLOWER_TURTLEBOT_H

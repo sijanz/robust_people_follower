@@ -33,56 +33,7 @@
 *********************************************************************/
 
 
-#ifndef ROBUST_PEOPLE_FOLLOWER_PERSON_H
-#define ROBUST_PEOPLE_FOLLOWER_PERSON_H
-
-#include <body_tracker_msgs/Skeleton.h>
-#include <geometry_msgs/Point32.h>
-#include <cmath>
-
-
-/**
- * Stores data related to a tracked person.
- */
-class Person
-{
-public:
-    Person();
-    explicit Person(const body_tracker_msgs::Skeleton& t_skeleton);
-    void printPersonInfo() const;
-    void printVerbosePersonInfo() const;
-    int getId() const;
-    bool isTarget() const;
-    body_tracker_msgs::Skeleton getSkeleton() const;
-    geometry_msgs::Point32 getAbsolutePosition() const;
-    geometry_msgs::Point32 getOldAbsolutePosition() const;
-    int getGestureBegin() const;
-    double getDistance() const;
-    double getYDeviation() const;
-    double getVelocity() const;
-    double getAngle() const;
-    bool hasCorrectHandHeight() const;
-    void setTarget(bool t_is_target);
-    void setSkeleton(const body_tracker_msgs::Skeleton& t_skeleton);
-    void setAbsolutePosition(const geometry_msgs::Point32& t_absolute_position);
-    void setGestureBegin(const ros::Time& t_gesture_begin);
-    void setAngle(double t_angle);
-    void calculateAbsolutePosition(double t_robot_x, double t_robot_y, double t_robot_angle);
-    void calculateVelocity(double t_frequency);
-    void calculateAngle();
-    void updateOldPosition();
-    void setVelocity(double t_velocity);
-
-private:
-    bool m_is_target;
-    double m_velocity;
-    double m_angle;
-
-    body_tracker_msgs::Skeleton m_skeleton;
-    geometry_msgs::Point32 m_absolute_position;
-    geometry_msgs::Point32 m_old_absolute_position;
-    ros::Time m_gesture_begin;
-};
+#include "robust_people_follower/person.h"
 
 
 Person::Person()
@@ -263,6 +214,3 @@ bool Person::hasCorrectHandHeight() const
 {
     return m_skeleton.joint_position_left_hand.z > m_skeleton.joint_position_spine_top.z;
 }
-
-
-#endif //ROBUST_PEOPLE_FOLLOWER_PERSON_H

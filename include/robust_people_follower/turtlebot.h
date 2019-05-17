@@ -33,15 +33,57 @@
 *********************************************************************/
 
 
-#include "robust_people_follower/robust_people_follower.h"
-#include "robust_people_follower/turtlebot.h"
+#ifndef ROBUST_PEOPLE_FOLLOWER_TURTLEBOT_H
+#define ROBUST_PEOPLE_FOLLOWER_TURTLEBOT_H
 
 
-int main(int argc, char **argv)
+#include <math.h>
+#include <deque>
+
+#include <tf/transform_datatypes.h>
+#include <geometry_msgs/Pose.h>
+#include <geometry_msgs/Twist.h>
+
+#include "person.h"
+
+
+/**
+ * Stores data related to the roboter.
+ */
+class Turtlebot
 {
-    ros::init(argc, argv, "robust_people_follower");
-    RobustPeopleFollower robust_people_follower(ros::this_node::getName());
-    robust_people_follower.runLoop();
+public:
 
-    return 0;
-}
+    enum Status
+    {
+        WAITING = 0,
+        FOLLOWING = 1,
+        SEARCHING = 2
+    };
+
+    Turtlebot();
+    void printTurtlebotInfo() const;
+    Turtlebot::Status getStatus() const;
+    double getAngle() const;
+    geometry_msgs::Pose getPose();
+    void setStatus(Turtlebot::Status t_status);
+    void setPose(const geometry_msgs::Pose& t_pose);
+    void updateOldPose();
+    void calculateVelocity(double t_frequency);
+    geometry_msgs::Twist& setVelocityCommand(const Person& t_target,
+                                             std::deque<geometry_msgs::PointStamped>& t_goal_list,
+                                             geometry_msgs::Twist& t_msg);
+
+private:
+    Turtlebot::Status m_status;
+    double m_velocity;
+    geometry_msgs::Pose m_pose;
+    geometry_msgs::Pose m_old_pose;
+    double m_angle;
+    double m_current_linear;
+    double m_current_angular;
+
+    void calculateAngle();
+};
+
+#endif //ROBUST_PEOPLE_FOLLOWER_TURTLEBOT_H
