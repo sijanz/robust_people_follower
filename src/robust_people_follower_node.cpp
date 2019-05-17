@@ -220,7 +220,8 @@ void RobustPeopleFollowerNode::runLoop()
 
                     m_visualization_pub.publish(marker);
 
-                    // TODO: testing
+                    // FIXME: use the old vector
+                    /*
                     visualization_msgs::Marker vector;
                     vector.header.frame_id = "odom";
                     vector.header.stamp = ros::Time();
@@ -247,6 +248,7 @@ void RobustPeopleFollowerNode::runLoop()
                     vector.color.b = 0.0;
 
                     m_visualization_pub.publish(vector);
+                     */
                 }
             }
         }
@@ -492,46 +494,49 @@ void RobustPeopleFollowerNode::publishTargetPath()
 }
 
 
-// FIXME: delete old markers at (0,0)
 void RobustPeopleFollowerNode::publishPersonMarkers() const
 {
     std::vector<visualization_msgs::Marker> person_markers;
 
     int i = 0;
     for (auto& p : m_tracked_persons) {
-        visualization_msgs::Marker marker;
-        marker.header.frame_id = "odom";
-        marker.header.stamp = ros::Time();
-        marker.ns = "persons";
-        marker.id = i;
-        marker.type = visualization_msgs::Marker::MESH_RESOURCE;
-        marker.action = visualization_msgs::Marker::ADD;
-        marker.pose.position.x = p.getAbsolutePosition().x;
-        marker.pose.position.y = p.getAbsolutePosition().y;
-        marker.pose.position.z = 0.0;
-        marker.pose.orientation.x = 0.0;
-        marker.pose.orientation.y = 0.0;
-        marker.pose.orientation.z = 0.0;
-        marker.pose.orientation.w = 1.0;
-        marker.scale.x = 1.0;
-        marker.scale.y = 1.0;
-        marker.scale.z = 1.0;
+        if (p.getDistance() > 0 && p.getDistance() < 3990) {
+            visualization_msgs::Marker marker;
+            marker.header.frame_id = "odom";
+            marker.header.stamp = ros::Time();
+            marker.ns = "persons";
+            marker.id = i;
+            marker.type = visualization_msgs::Marker::MESH_RESOURCE;
+            marker.action = visualization_msgs::Marker::ADD;
+            marker.lifetime = ros::Duration(0.1);
+            marker.pose.position.x = p.getAbsolutePosition().x;
+            marker.pose.position.y = p.getAbsolutePosition().y;
+            marker.pose.position.z = 0.0;
+            marker.pose.orientation.x = 0.0;
+            marker.pose.orientation.y = 0.0;
+            marker.pose.orientation.z = 0.0;
+            marker.pose.orientation.w = 1.0;
 
-        marker.color.a = 1.0;
-        marker.color.r = 1.0;
-        marker.color.g = 0.5;
-        marker.color.b = 0.0;
+            marker.scale.x = 1.0;
+            marker.scale.y = 1.0;
+            marker.scale.z = 1.0;
 
-        marker.mesh_resource = "package://robust_people_follower/meshes/standing.dae";
+            marker.color.a = 1.0;
+            marker.color.r = 1.0;
+            marker.color.g = 0.5;
+            marker.color.b = 0.0;
 
-        // show a green marker for a tracked person
-        if (p.isTarget()) {
-            marker.color.r = 0.0;
-            marker.color.g = 1.0;
+            marker.mesh_resource = "package://robust_people_follower/meshes/standing.dae";
+
+            // show a green marker for a tracked person
+            if (p.isTarget()) {
+                marker.color.r = 0.0;
+                marker.color.g = 1.0;
+            }
+
+            person_markers.emplace_back(marker);
+            ++i;
         }
-
-        person_markers.emplace_back(marker);
-        ++i;
     }
 
     for (auto& m : person_markers) {
@@ -546,34 +551,37 @@ void RobustPeopleFollowerNode::publishPersonVectors() const
 
     int i = 0;
     for (auto& p : m_tracked_persons) {
-        visualization_msgs::Marker vector;
-        vector.header.frame_id = "odom";
-        vector.header.stamp = ros::Time();
-        vector.ns = "vectors";
-        vector.id = i;
-        vector.type = visualization_msgs::Marker::ARROW;
-        vector.action = visualization_msgs::Marker::ADD;
-        vector.pose.position.x = p.getAbsolutePosition().x;
-        vector.pose.position.y = p.getAbsolutePosition().y;
-        vector.pose.position.z = 1.3;
+        if (p.getDistance() > 0 && p.getDistance() < 3990) {
+            visualization_msgs::Marker vector;
+            vector.header.frame_id = "odom";
+            vector.header.stamp = ros::Time();
+            vector.ns = "vectors";
+            vector.id = i;
+            vector.type = visualization_msgs::Marker::ARROW;
+            vector.action = visualization_msgs::Marker::ADD;
+            vector.lifetime = ros::Duration(0.1);
+            vector.pose.position.x = p.getAbsolutePosition().x;
+            vector.pose.position.y = p.getAbsolutePosition().y;
+            vector.pose.position.z = 1.3;
 
-        tf::Quaternion q = tf::createQuaternionFromYaw(p.getAngle());
-        vector.pose.orientation.x = q.getX();
-        vector.pose.orientation.y = q.getY();
-        vector.pose.orientation.z = q.getZ();
-        vector.pose.orientation.w = q.getW();
+            tf::Quaternion q = tf::createQuaternionFromYaw(p.getAngle());
+            vector.pose.orientation.x = q.getX();
+            vector.pose.orientation.y = q.getY();
+            vector.pose.orientation.z = q.getZ();
+            vector.pose.orientation.w = q.getW();
 
-        vector.scale.x = 0.5 + VECTOR_LENGTH_FACTOR * p.getVelocity();
-        vector.scale.y = 0.1;
-        vector.scale.z = 0.1;
+            vector.scale.x = 0.5 + VECTOR_LENGTH_FACTOR * p.getVelocity();
+            vector.scale.y = 0.1;
+            vector.scale.z = 0.1;
 
-        vector.color.a = 1.0; // Don't forget to set the alpha!
-        vector.color.r = 1.0;
-        vector.color.g = 0.0;
-        vector.color.b = 0.0;
+            vector.color.a = 1.0; // Don't forget to set the alpha!
+            vector.color.r = 1.0;
+            vector.color.g = 0.0;
+            vector.color.b = 0.0;
 
-        person_vectors.emplace_back(vector);
-        ++i;
+            person_vectors.emplace_back(vector);
+            ++i;
+        }
     }
 
     for (auto& v : person_vectors) {
