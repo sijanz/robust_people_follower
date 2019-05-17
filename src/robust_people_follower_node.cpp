@@ -106,6 +106,9 @@ private:
     // list that holds goals, at maximum 10
     std::deque<geometry_msgs::PointStamped> m_goal_list;
 
+    // stores the timestamp of the last goal in the goal list
+    int m_last_goal_sec;
+
     // helper methods to keep the main loop tidy
     void debugPrintout();
     void setTarget();
@@ -118,12 +121,6 @@ private:
     void manageGoalList();
     void addNewGoal();
     void updateTargetPath();
-
-    // variables for setting a goal twice every second
-    int m_last_sec;
-    int m_current_sec;
-    bool m_in_first_half;
-    bool m_in_second_half;
 };
 
 
@@ -156,8 +153,7 @@ RobustPeopleFollowerNode::RobustPeopleFollowerNode(const std::string& t_name)
     m_robot_path = m_target_path = {};
     m_seq_robot = m_seq_target = {};
     m_goal_list = {};
-    m_last_sec = m_current_sec = 0;
-    m_in_first_half = m_in_second_half = false;
+    m_last_goal_sec = 0;
 }
 
 
@@ -182,7 +178,7 @@ void RobustPeopleFollowerNode::runLoop()
         setTarget();
 
         // add new goal to goal list
-        // TODO: addNewGoal();
+        addNewGoal();
 
         // TODO: implement actual searching
         // robot loses target
@@ -200,6 +196,7 @@ void RobustPeopleFollowerNode::runLoop()
                     marker.ns = "estimation";
                     marker.type = visualization_msgs::Marker::MESH_RESOURCE;
                     marker.action = visualization_msgs::Marker::ADD;
+                    marker.lifetime = ros::Duration(10);
                     marker.pose.position.x = m_target.getOldAbsolutePosition().x;
                     marker.pose.position.y = m_target.getOldAbsolutePosition().y;
                     marker.pose.position.z = 0.0;
@@ -258,6 +255,9 @@ void RobustPeopleFollowerNode::runLoop()
 
         debugPrintout();
 
+        // DEBUG
+        ROS_INFO("before moving");
+
         // TODO: test
         // move the robot
         if (m_target.getDistance() != 0) {
@@ -266,6 +266,10 @@ void RobustPeopleFollowerNode::runLoop()
             ROS_INFO("velocity message: linear: %f, angular: %f", speed.linear.x, speed.angular.z);
             m_velocity_command_pub.publish(speed);
         }
+
+        // DEBUG
+        // FIXME: seg fault
+        ROS_INFO("after moving");
 
 
         // publish markers to view in RViz
@@ -286,7 +290,7 @@ void RobustPeopleFollowerNode::runLoop()
         managePersonList();
 
         // TODO: test
-        manageGoalList();
+        // manageGoalList();
 
         loop_rate.sleep();
     }
@@ -307,12 +311,9 @@ void RobustPeopleFollowerNode::debugPrintout()
     ROS_INFO("target information:");
     m_target.printVerbosePersonInfo();
 
-    ROS_INFO("goal list:");
-    for (auto& g : m_goal_list) {
-        ROS_INFO("[%f, %f] %d", g.point.x, g.point.y, g.header.stamp.sec);
-    }
+    ROS_INFO("goal list size: %lu", m_goal_list.size());
 
-    ROS_INFO("list size: %lu", m_tracked_persons.size());
+    ROS_INFO("tracked persons: %lu", m_tracked_persons.size());
     if (!m_tracked_persons.empty()) {
         for (auto& p : m_tracked_persons) {
             p.printPersonInfo();
@@ -385,7 +386,7 @@ void RobustPeopleFollowerNode::skeletonCallback(const body_tracker_msgs::Skeleto
 
     bool found = false;
     for (auto& p : m_tracked_persons) {
-        if (p.getId() == skeleton.body_id && p.getDistance() > 0) {
+        if (p.getId() == skeleton.body_id) {
             found = true;
 
             // update information
@@ -462,6 +463,7 @@ void RobustPeopleFollowerNode::skeletonCallback(const body_tracker_msgs::Skeleto
 }
 
 
+// TODO: use copy assignment operator
 void RobustPeopleFollowerNode::setTarget()
 {
     for (auto& p : m_tracked_persons) {
@@ -510,7 +512,7 @@ void RobustPeopleFollowerNode::publishPersonMarkers() const
             marker.id = i;
             marker.type = visualization_msgs::Marker::MESH_RESOURCE;
             marker.action = visualization_msgs::Marker::ADD;
-            marker.lifetime = ros::Duration(0.1);
+            marker.lifetime = ros::Duration(0.3);
             marker.pose.position.x = p.getAbsolutePosition().x;
             marker.pose.position.y = p.getAbsolutePosition().y;
             marker.pose.position.z = 0.0;
@@ -561,7 +563,7 @@ void RobustPeopleFollowerNode::publishPersonVectors() const
             vector.id = i;
             vector.type = visualization_msgs::Marker::ARROW;
             vector.action = visualization_msgs::Marker::ADD;
-            vector.lifetime = ros::Duration(0.1);
+            vector.lifetime = ros::Duration(0.3);
             vector.pose.position.x = p.getAbsolutePosition().x;
             vector.pose.position.y = p.getAbsolutePosition().y;
             vector.pose.position.z = 1.3;
@@ -639,7 +641,7 @@ void RobustPeopleFollowerNode::managePersonList()
     if (!m_tracked_persons.empty()) {
         auto it = m_tracked_persons.begin();
         while (it != m_tracked_persons.end()) {
-            if (it->getDistance() == 0 && it->getYDeviation() == 0) // TODO: && !it->isTarget()
+            if (it->getDistance() == 0 && it->getYDeviation() == 0)
                 it = m_tracked_persons.erase(it);
             else
                 ++it;
@@ -670,21 +672,10 @@ void RobustPeopleFollowerNode::addNewGoal()
         position.point.y = m_target.getAbsolutePosition().y;
         position.point.z = 0.0;
 
-        m_current_sec = ros::Time::now().sec;
-
-        if (ros::Time::now().nsec > 0 && ros::Time::now().nsec < 500000000 && !m_in_first_half) {
+        if (ros::Time::now().sec != m_last_goal_sec) {
             m_goal_list.emplace_back(position);
-            m_in_first_half = true;
+            m_last_goal_sec = ros::Time::now().sec;
         }
-        if (ros::Time::now().nsec > 500000000 && !m_in_second_half) {
-            m_goal_list.emplace_back(position);
-            m_in_second_half = true;
-        }
-
-        if (m_last_sec != m_current_sec)
-            m_in_first_half = m_in_second_half = false;
-
-        m_last_sec = m_current_sec;
     }
 }
 
