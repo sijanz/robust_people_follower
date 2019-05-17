@@ -132,7 +132,6 @@ void Person::printVerbosePersonInfo() const
 }
 
 
-
 int Person::getId() const
 {
     return m_skeleton.body_id;
@@ -207,11 +206,10 @@ double Person::getYDeviation() const
 
 void Person::calculateAbsolutePosition(double t_robot_x, double t_robot_y, double t_robot_angle)
 {
-    m_absolute_position.x = t_robot_x + (cos(t_robot_angle) * m_skeleton.joint_position_spine_top.x -
-                                         sin(t_robot_angle) * m_skeleton.joint_position_spine_top.y);
-
-    m_absolute_position.y = t_robot_y + (sin(t_robot_angle) * m_skeleton.joint_position_spine_top.x +
-                                         cos(t_robot_angle) * m_skeleton.joint_position_spine_top.y);
+    m_absolute_position.x = t_robot_x + (cos(t_robot_angle) * (m_skeleton.centerOfMass.x / 1000) -
+                                         sin(t_robot_angle) * (m_skeleton.centerOfMass.y / 1000));
+    m_absolute_position.y = t_robot_y + (sin(t_robot_angle) * (m_skeleton.centerOfMass.x / 1000) +
+                                         cos(t_robot_angle) * (m_skeleton.centerOfMass.y / 1000));
 
     calculateAngle();
 }
