@@ -182,7 +182,7 @@ void RobustPeopleFollowerNode::runLoop()
         setTarget();
 
         // add new goal to goal list
-        addNewGoal();
+        // TODO: addNewGoal();
 
         // TODO: implement actual searching
         // robot loses target
@@ -411,12 +411,14 @@ void RobustPeopleFollowerNode::skeletonCallback(const body_tracker_msgs::Skeleto
                             p.setTarget(false);
 
                             // reset target's information
+                            /*
                             m_target.setSkeleton({});
                             m_target.setTarget(false);
                             m_target.setVelocity(0.0);
                             m_target.setAbsolutePosition(geometry_msgs::Point32{});
                             m_target.setGestureBegin(ros::Time(0));
                             m_target.setAngle(0.0);
+                            */
 
                             m_turtlebot.setStatus(Turtlebot::Status::WAITING);
 
@@ -689,12 +691,14 @@ void RobustPeopleFollowerNode::addNewGoal()
 
 void RobustPeopleFollowerNode::updateTargetPath()
 {
-    geometry_msgs::PoseStamped pose_stamped;
-    pose_stamped.header.seq = m_seq_target;
-    pose_stamped.header.stamp = ros::Time::now();
-    pose_stamped.header.frame_id = "odom";
-    pose_stamped.pose.position.x = m_target.getAbsolutePosition().x;
-    pose_stamped.pose.position.y = m_target.getAbsolutePosition().y;
-    pose_stamped.pose.position.z = m_target.getAbsolutePosition().z;
-    m_target_path.poses.push_back(pose_stamped);
+    if (m_target.getDistance() > 0) {
+        geometry_msgs::PoseStamped pose_stamped;
+        pose_stamped.header.seq = m_seq_target;
+        pose_stamped.header.stamp = ros::Time::now();
+        pose_stamped.header.frame_id = "odom";
+        pose_stamped.pose.position.x = m_target.getAbsolutePosition().x;
+        pose_stamped.pose.position.y = m_target.getAbsolutePosition().y;
+        pose_stamped.pose.position.z = m_target.getAbsolutePosition().z;
+        m_target_path.poses.push_back(pose_stamped);
+    }
 }
