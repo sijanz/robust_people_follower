@@ -36,6 +36,7 @@
 #ifndef ROBUST_PEOPLE_FOLLOWER_TURTLEBOT_H
 #define ROBUST_PEOPLE_FOLLOWER_TURTLEBOT_H
 
+#include <math.h>
 #include <tf/transform_datatypes.h>
 #include <geometry_msgs/Pose.h>
 #include "person.h"
@@ -199,7 +200,7 @@ double Turtlebot::getAngle() const
 }
 
 
-// TODO: test, make smoother, make threshold variable
+// TODO: test, make threshold variable
 geometry_msgs::Twist& Turtlebot::setVelocityCommand(const Person& t_target,
                                                     std::deque<geometry_msgs::PointStamped>& t_goal_list,
                                                     geometry_msgs::Twist& t_msg)
@@ -207,101 +208,78 @@ geometry_msgs::Twist& Turtlebot::setVelocityCommand(const Person& t_target,
     t_msg.linear.x = 0.0;
     t_msg.angular.z = 0.0;
 
-    if (!t_goal_list.empty()) {
-        geometry_msgs::PointStamped& current_goal = t_goal_list.at(0);
+    if (m_status == Status::FOLLOWING || m_status == Status::SEARCHING) {
+        if (!t_goal_list.empty()) {
+
+            // move backwards if target is too near
+            if (t_target.getDistance() < 1000 && t_target.getDistance() > 0)
+                t_msg.linear.x = 2 * (t_target.getDistance() / 1000) - 2;
+            else if (t_target.getDistance() > 1000 && t_target.getDistance() < 1800) {
+                if (t_target.getYDeviation() < -50) {
+                    t_msg.angular.z = -0.0025 * std::abs(t_target.getYDeviation());
+                    ROS_INFO("[TURNING LEFT at %f]", t_msg.angular.z);
+                } else if (t_target.getYDeviation() > 50) {
+                    t_msg.angular.z = 0.0025 * t_target.getYDeviation();
+                    ROS_INFO("[TURNING RIGHT at %f]", t_msg.angular.z);
+                }
+            } else if (t_target.getDistance() == 0 || t_target.getDistance() > 1800) {
+                geometry_msgs::PointStamped& current_goal = t_goal_list.at(0);
 
 
-        double inc_x = current_goal.point.x - m_pose.position.x;
-        double inc_y = current_goal.point.y - m_pose.position.y;
+                double inc_x = current_goal.point.x - m_pose.position.x;
+                double inc_y = current_goal.point.y - m_pose.position.y;
 
-        double angle_to_goal = atan2(inc_y, inc_x);
-        double distance_to_goal = sqrt(pow(current_goal.point.x - m_pose.position.x, 2)
-                                       + pow(current_goal.point.y - m_pose.position.y, 2));
+                double angle_to_goal = atan2(inc_y, inc_x);
+                double distance_to_goal = sqrt(pow(current_goal.point.x - m_pose.position.x, 2)
+                                               + pow(current_goal.point.y - m_pose.position.y, 2));
 
-        //if (t_target.getDistance() > 1800) {
-        if (distance_to_goal < 0.3) {
+                if (distance_to_goal < 0.3) {
 
-            // input 40% less acceleration
-            t_msg.linear.x = m_current_linear - (m_current_linear / 100) * 40;
-            t_msg.angular.z = m_current_angular - (m_current_angular / 100) * 40;
+                    // input 20% less acceleration
+                    t_msg.linear.x = m_current_linear - (m_current_linear / 100) * 20;
+                    t_msg.angular.z = m_current_angular - (m_current_angular / 100) * 20;
 
-            t_goal_list.pop_front();
+                    t_goal_list.pop_front();
 
-            if (!t_goal_list.empty())
-                current_goal = t_goal_list.at(0);
+                    if (!t_goal_list.empty())
+                        current_goal = t_goal_list.at(0);
 
 
-        } else if (angle_to_goal - m_angle > 0.2)
-            t_msg.angular.z = 0.5 * (angle_to_goal - m_angle);
-        else if (angle_to_goal - m_angle < -0.2)
-            t_msg.angular.z = -0.5 * std::abs(angle_to_goal - m_angle);
-        else
-            t_msg.linear.x = 0.4;
-        //t_msg.linear.x = 0.32 * (t_target.getDistance() / 1000) - 0.576;
+                    // FIXME: threshold must be smaller to negate pendulum effect
+                } else if (angle_to_goal - m_angle > 0.2)
+                    //t_msg.angular.z = 1.0;
+                    t_msg.angular.z = 0.5 * (angle_to_goal - m_angle);
+                else if (angle_to_goal - m_angle < -0.2)
+                    //t_msg.angular.z = 1.0;
+                    t_msg.angular.z = -0.5 * std::abs(angle_to_goal - m_angle);
+                //t_msg.linear.x = 0.32 * (t_target.getDistance() / 1000) - 0.576;
+                t_msg.linear.x = 0.3;
 
-        // move backwards if target is too near
-    } else if (t_target.getDistance() < 1000 && t_target.getDistance() > 0) {
-        t_msg.linear.x = 2 * (t_target.getDistance() / 1000) - 2;
+            }
+        }
+
+            // no goals
+        else {
+
+            // angular velocity
+            if (t_target.getYDeviation() < -50) {
+                t_msg.angular.z = -0.0025 * std::abs(t_target.getYDeviation());
+            } else if (t_target.getYDeviation() > 50) {
+                t_msg.angular.z = 0.0025 * t_target.getYDeviation();
+            } else
+                t_msg.angular.z = 0;
+
+            // linear velocity
+            if (t_target.getDistance() < 1000 && t_target.getDistance() > 0.0) {
+                t_msg.linear.x = 2 * (t_target.getDistance() / 1000) - 2;
+            }
+        }
     }
 
-    /*// keep human in center if the distance is less than the threshold
-else {
-    if (t_target.getYDeviation() < -50)
-        t_msg.angular.z = -0.0025 * std::abs(t_target.getYDeviation());
-    else if (t_target.getYDeviation() > 50)
-        t_msg.angular.z = 0.0025 * t_target.getYDeviation();
-}*/
     m_current_linear = t_msg.linear.x;
     m_current_angular = t_msg.angular.z;
 
-    /*
-    // no goals
-} else {
-    // angular velocity
-    if (t_target.getYDeviation() < -50) {
-        t_msg.angular.z = -0.0025 * std::abs(t_target.getYDeviation());
-    } else if (t_target.getYDeviation() > 50) {
-        t_msg.angular.z = 0.0025 * t_target.getYDeviation();
-    } else
-        t_msg.angular.z = 0;
-
-    // linear velocity
-    if (t_target.getDistance() < 1000 && t_target.getDistance() > 0.0) {
-        t_msg.linear.x = 2 * (t_target.getDistance() / 1000) - 2;
-    }
-}
-*/
-
     return t_msg;
-
-/*
-// stop robot if target made gesture
-if (m_status == WAITING) {
-    t_msg.angular.z = 0.0;
-    t_msg.linear.x = 0.0;
-} else {
-
-    // angular velocity
-    if (t_target.getYDeviation() < -50) {
-        t_msg.angular.z = -0.0025 * std::abs(t_target.getYDeviation());
-        ROS_INFO("[TURNING LEFT at %f]", t_msg.angular.z);
-    } else if (t_target.getYDeviation() > 50) {
-        t_msg.angular.z = 0.0025 * t_target.getYDeviation();
-        ROS_INFO("[TURNING RIGHT at %f]", t_msg.angular.z);
-    } else
-        t_msg.angular.z = 0;
-
-    // linear velocity
-    if (t_target.getDistance() > 1800) {
-        t_msg.linear.x = 0.32 * (t_target.getDistance() / 1000) - 0.576;
-        ROS_INFO("[MOVING FORWARD AT %f]", t_msg.linear.x);
-    } else if (t_target.getDistance() < 1000 && t_target.getDistance() > 0.0) {
-        t_msg.linear.x = 2 * (t_target.getDistance() / 1000) - 2;
-        ROS_INFO("[MOVING BACKWARDS AT %f]", t_msg.linear.x);
-    }
-}
- */
-
 }
 
 
