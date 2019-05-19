@@ -88,6 +88,7 @@ private:
     // instance of the turtlebot robot
     Turtlebot m_turtlebot;
 
+    // TODO: to turtlebot.h
     // instance of the target to follow
     Person m_target;
 
@@ -106,23 +107,28 @@ private:
     // sequence number for target path
     uint32_t m_seq_target;
 
+    // TODO: to turtlebot.h
     // list that holds goals, at maximum 10
     std::deque<geometry_msgs::PointStamped> m_goal_list;
 
-    // stores the timestamp of the last goal in the goal list
-    int m_last_goal_sec;
-
     // helper methods to keep the main loop tidy
     void debugPrintout();
+
+    // TODO: to turtlebot.h
     void setTarget();
+
     void publishRobotPath();
     void publishTargetPath();
     void publishPersonMarkers() const;
     void publishPersonVectors() const;
     void publishRobotGoals() const;
+
+    // TODO: to turtlebot.h
     void managePersonList();
-    void manageGoalList();
+
+    // TODO: to turtlebot.h
     void addNewGoal();
+
     void updateTargetPath();
 };
 

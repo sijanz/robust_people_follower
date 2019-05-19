@@ -42,8 +42,7 @@ Person::Person()
     m_velocity = 0.0;
     m_angle = 0.0;
     m_gesture_begin = ros::Time(0);
-    m_absolute_position.x = m_absolute_position.y = m_absolute_position.z = 0.0;
-    m_old_absolute_position.x = m_old_absolute_position.y = m_old_absolute_position.z = 0.0;
+    m_pose = m_old_pose = geometry_msgs::Pose{};
     m_skeleton = {};
 }
 
@@ -54,20 +53,19 @@ Person::Person(const body_tracker_msgs::Skeleton& t_skeleton)
     m_velocity = 0.0;
     m_angle = 0.0;
     m_gesture_begin = ros::Time(0);
-    m_absolute_position.x = m_absolute_position.y = m_absolute_position.z = 0.0;
-    m_old_absolute_position.x = m_old_absolute_position.y = m_old_absolute_position.z = 0.0;
+    m_pose = m_old_pose = geometry_msgs::Pose{};
     m_skeleton = t_skeleton;
 }
 
 
-void Person::printPersonInfo() const
+void Person::printInfo() const
 {
     ROS_INFO("id: %d, is target: %d, distance: %f, gestures: %d, height: %d",
              m_skeleton.body_id, m_is_target, m_skeleton.centerOfMass.x, m_skeleton.gesture, hasCorrectHandHeight());
 }
 
 
-void Person::printVerbosePersonInfo() const
+void Person::printVerboseInfo() const
 {
     ROS_INFO("id: %d", m_skeleton.body_id);
     ROS_INFO("  velocity: %f", m_velocity);
@@ -75,8 +73,8 @@ void Person::printVerbosePersonInfo() const
     ROS_INFO("    x: %f", m_skeleton.joint_position_spine_top.x);
     ROS_INFO("    y: %f", m_skeleton.joint_position_spine_top.y);
     ROS_INFO("  position (absolute):");
-    ROS_INFO("    x: %f", m_absolute_position.x);
-    ROS_INFO("    y: %f", m_absolute_position.y);
+    ROS_INFO("    x: %f", m_pose.position.x);
+    ROS_INFO("    y: %f", m_pose.position.y);
     ROS_INFO("  theta: %f", m_angle);
     ROS_INFO("  distance: %f", m_skeleton.centerOfMass.x);
     ROS_INFO("  y-deviation of center of mass: %f\n", m_skeleton.centerOfMass.y);
@@ -113,24 +111,6 @@ void Person::setSkeleton(const body_tracker_msgs::Skeleton& t_skeleton)
 }
 
 
-geometry_msgs::Point32 Person::getAbsolutePosition() const
-{
-    return m_absolute_position;
-}
-
-
-geometry_msgs::Point32 Person::getOldAbsolutePosition() const
-{
-    return m_old_absolute_position;
-}
-
-
-void Person::setAbsolutePosition(const geometry_msgs::Point32& t_absolute_position)
-{
-    m_absolute_position = t_absolute_position;
-}
-
-
 int Person::getGestureBegin() const
 {
     return m_gesture_begin.sec;
@@ -157,56 +137,12 @@ double Person::getYDeviation() const
 
 void Person::calculateAbsolutePosition(double t_robot_x, double t_robot_y, double t_robot_angle)
 {
-    m_absolute_position.x = t_robot_x + (cos(t_robot_angle) * (m_skeleton.centerOfMass.x / 1000) -
-                                         sin(t_robot_angle) * (m_skeleton.centerOfMass.y / 1000));
-    m_absolute_position.y = t_robot_y + (sin(t_robot_angle) * (m_skeleton.centerOfMass.x / 1000) +
-                                         cos(t_robot_angle) * (m_skeleton.centerOfMass.y / 1000));
+    m_pose.position.x = t_robot_x + (cos(t_robot_angle) * (m_skeleton.centerOfMass.x / 1000) -
+                                     sin(t_robot_angle) * (m_skeleton.centerOfMass.y / 1000));
+    m_pose.position.y = t_robot_y + (sin(t_robot_angle) * (m_skeleton.centerOfMass.x / 1000) +
+                                     cos(t_robot_angle) * (m_skeleton.centerOfMass.y / 1000));
 
     calculateAngle();
-}
-
-
-void Person::calculateVelocity(double t_frequency)
-{
-    m_velocity = sqrt(pow((m_old_absolute_position.x - m_absolute_position.x), 2) +
-                      pow((m_old_absolute_position.y - m_absolute_position.y), 2)) / (1 / t_frequency);
-}
-
-
-void Person::calculateAngle()
-{
-    m_angle = std::atan2((m_absolute_position.y - m_old_absolute_position.y),
-                         (m_absolute_position.x - m_old_absolute_position.x));
-}
-
-
-double Person::getAngle() const
-{
-    return m_angle;
-}
-
-
-void Person::setAngle(const double t_angle)
-{
-    m_angle = t_angle;
-}
-
-
-void Person::updateOldPosition()
-{
-    m_old_absolute_position = m_absolute_position;
-}
-
-
-double Person::getVelocity() const
-{
-    return m_velocity;
-}
-
-
-void Person::setVelocity(double t_velocity)
-{
-    m_velocity = t_velocity;
 }
 
 

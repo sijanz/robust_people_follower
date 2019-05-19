@@ -33,46 +33,82 @@
 *********************************************************************/
 
 
-#ifndef ROBUST_PEOPLE_FOLLOWER_TURTLEBOT_H
-#define ROBUST_PEOPLE_FOLLOWER_TURTLEBOT_H
-
-
-#include <deque>
-
-#include <geometry_msgs/PointStamped.h>
-#include <geometry_msgs/Pose.h>
-#include <geometry_msgs/Twist.h>
+#include <tf/transform_datatypes.h>
 
 #include "robust_people_follower/object_2d_space.h"
-#include "robust_people_follower/person.h"
 
 
-/**
- * Stores data related to the robot.
- */
-class Turtlebot : public Object2DSpace
+Object2DSpace::Object2DSpace() : m_pose(geometry_msgs::Pose{}),
+                                 m_old_pose(geometry_msgs::Pose{}), m_velocity(0.0), m_angle(0.0)
+{}
+
+
+geometry_msgs::Pose Object2DSpace::getPose() const
 {
-public:
+    return m_pose;
+}
 
-    enum Status
-    {
-        WAITING = 0,
-        FOLLOWING = 1,
-        SEARCHING = 2
-    };
 
-    Turtlebot();
-    void printInfo() const override;
-    Turtlebot::Status getStatus() const;
-    void setStatus(Turtlebot::Status t_status);
-    geometry_msgs::Twist& setVelocityCommand(const Person& t_target,
-                                             std::deque<geometry_msgs::PointStamped>& t_goal_list,
-                                             geometry_msgs::Twist& t_msg);
+geometry_msgs::Pose Object2DSpace::getOldPose() const
+{
+    return m_old_pose;
+}
 
-private:
-    Turtlebot::Status m_status;
-    double m_current_linear;
-    double m_current_angular;
-};
 
-#endif //ROBUST_PEOPLE_FOLLOWER_TURTLEBOT_H
+double Object2DSpace::getVelocity() const
+{
+    return m_velocity;
+}
+
+
+double Object2DSpace::getAngle() const
+{
+    return m_angle;
+}
+
+
+void Object2DSpace::setPose(const geometry_msgs::Pose& t_pose)
+{
+    m_pose = t_pose;
+}
+
+
+void Object2DSpace::setOldPose(const geometry_msgs::Pose& t_old_pose)
+{
+    m_old_pose = t_old_pose;
+}
+
+
+void Object2DSpace::setVelocity(double t_velocity)
+{
+    m_velocity = t_velocity;
+}
+
+
+void Object2DSpace::setAngle(double t_angle)
+{
+    m_angle = t_angle;
+}
+
+
+void Object2DSpace::updateOldPose()
+{
+    m_old_pose = m_pose;
+}
+
+
+void Object2DSpace::calculateVelocity(double t_frequency)
+{
+    m_velocity = sqrt(pow((m_old_pose.position.x - m_pose.position.x), 2) +
+                      pow((m_old_pose.position.y - m_pose.position.y), 2)) / (1 / t_frequency);
+}
+
+
+void Object2DSpace::calculateAngle()
+{
+    tf::Quaternion q(m_pose.orientation.x, m_pose.orientation.y, m_pose.orientation.z, m_pose.orientation.w);
+    tf::Matrix3x3 m(q);
+    double roll, pitch, theta;
+    m.getRPY(roll, pitch, theta);
+    m_angle = theta;
+}

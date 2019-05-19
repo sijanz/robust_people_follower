@@ -33,6 +33,8 @@
 *********************************************************************/
 
 
+#include <tf/transform_datatypes.h>
+
 #include "robust_people_follower/robust_people_follower.h"
 
 
@@ -53,7 +55,6 @@ RobustPeopleFollower::RobustPeopleFollower(const std::string& t_name)
     m_robot_path = m_target_path = {};
     m_seq_robot = m_seq_target = {};
     m_goal_list = {};
-    m_last_goal_sec = 0;
 }
 
 
@@ -97,8 +98,8 @@ void RobustPeopleFollower::runLoop()
                     marker.type = visualization_msgs::Marker::MESH_RESOURCE;
                     marker.action = visualization_msgs::Marker::ADD;
                     marker.lifetime = ros::Duration(10);
-                    marker.pose.position.x = m_target.getOldAbsolutePosition().x;
-                    marker.pose.position.y = m_target.getOldAbsolutePosition().y;
+                    marker.pose.position.x = m_target.getOldPose().position.x;
+                    marker.pose.position.y = m_target.getOldPose().position.y;
                     marker.pose.position.z = 0.0;
                     marker.pose.orientation.x = 0.0;
                     marker.pose.orientation.y = 0.0;
@@ -181,9 +182,9 @@ void RobustPeopleFollower::runLoop()
 
         // set old position to calculate velocity
         m_turtlebot.updateOldPose();
-        m_target.updateOldPosition();
+        m_target.updateOldPose();
         for (auto& p : m_tracked_persons) {
-            p.updateOldPosition();
+            p.updateOldPose();
         }
 
         // list management
@@ -206,17 +207,17 @@ void RobustPeopleFollower::debugPrintout()
 
     ROS_INFO("ROS time: %d", ros::Time::now().sec);
 
-    m_turtlebot.printTurtlebotInfo();
+    m_turtlebot.printInfo();
 
     ROS_INFO("target information:");
-    m_target.printVerbosePersonInfo();
+    m_target.printVerboseInfo();
 
     ROS_INFO("goal list size: %lu", m_goal_list.size());
 
     ROS_INFO("tracked persons: %lu", m_tracked_persons.size());
     if (!m_tracked_persons.empty()) {
         for (auto& p : m_tracked_persons) {
-            p.printPersonInfo();
+            p.printInfo();
         }
     }
 }
@@ -251,6 +252,7 @@ void RobustPeopleFollower::odometryCallback(const nav_msgs::Odometry::ConstPtr& 
     pose_stamped.pose.orientation.w = msg->pose.pose.orientation.w;
     m_robot_path.poses.push_back(pose_stamped);
 
+    m_turtlebot.calculateAngle();
     m_turtlebot.calculateVelocity(LOOP_FREQUENCY);
 }
 
@@ -369,7 +371,7 @@ void RobustPeopleFollower::setTarget()
     for (auto& p : m_tracked_persons) {
         if (p.isTarget()) {
             m_target.setSkeleton(p.getSkeleton());
-            m_target.setAbsolutePosition(p.getAbsolutePosition());
+            m_target.setPose(p.getPose());
             m_target.calculateVelocity(LOOP_FREQUENCY);
             m_target.setAngle(p.getAngle());
             break;
@@ -413,8 +415,8 @@ void RobustPeopleFollower::publishPersonMarkers() const
             marker.type = visualization_msgs::Marker::MESH_RESOURCE;
             marker.action = visualization_msgs::Marker::ADD;
             marker.lifetime = ros::Duration(0.3);
-            marker.pose.position.x = p.getAbsolutePosition().x;
-            marker.pose.position.y = p.getAbsolutePosition().y;
+            marker.pose.position.x = p.getPose().position.x;
+            marker.pose.position.y = p.getPose().position.y;
             marker.pose.position.z = 0.0;
             marker.pose.orientation.x = 0.0;
             marker.pose.orientation.y = 0.0;
@@ -464,8 +466,8 @@ void RobustPeopleFollower::publishPersonVectors() const
             vector.type = visualization_msgs::Marker::ARROW;
             vector.action = visualization_msgs::Marker::ADD;
             vector.lifetime = ros::Duration(0.3);
-            vector.pose.position.x = p.getAbsolutePosition().x;
-            vector.pose.position.y = p.getAbsolutePosition().y;
+            vector.pose.position.x = p.getPose().position.x;
+            vector.pose.position.y = p.getPose().position.y;
             vector.pose.position.z = 1.3;
 
             tf::Quaternion q = tf::createQuaternionFromYaw(p.getAngle());
@@ -550,17 +552,6 @@ void RobustPeopleFollower::managePersonList()
 }
 
 
-// TODO: test
-void RobustPeopleFollower::manageGoalList()
-{
-    if (!m_goal_list.empty() && m_target.getDistance() > 0 && m_target.getDistance() < 1800) {
-        auto& g = m_goal_list[0];
-        if (ros::Time::now().sec - g.header.stamp.sec > 5)
-            m_goal_list.pop_front();
-    }
-}
-
-
 void RobustPeopleFollower::addNewGoal()
 {
 
@@ -568,14 +559,13 @@ void RobustPeopleFollower::addNewGoal()
     if (m_target.getDistance() > 1800) {
         geometry_msgs::PointStamped position;
         position.header.stamp = ros::Time::now();
-        position.point.x = m_target.getAbsolutePosition().x;
-        position.point.y = m_target.getAbsolutePosition().y;
+        position.point.x = m_target.getPose().position.x;
+        position.point.y = m_target.getPose().position.y;
         position.point.z = 0.0;
 
-        if (ros::Time::now().sec != m_last_goal_sec) {
+        // TODO: test
+        if (m_goal_list.empty() || ros::Time::now().sec != m_goal_list.at(m_goal_list.size() - 1).header.stamp.sec)
             m_goal_list.emplace_back(position);
-            m_last_goal_sec = ros::Time::now().sec;
-        }
     }
 }
 
@@ -587,9 +577,8 @@ void RobustPeopleFollower::updateTargetPath()
         pose_stamped.header.seq = m_seq_target;
         pose_stamped.header.stamp = ros::Time::now();
         pose_stamped.header.frame_id = "odom";
-        pose_stamped.pose.position.x = m_target.getAbsolutePosition().x;
-        pose_stamped.pose.position.y = m_target.getAbsolutePosition().y;
-        pose_stamped.pose.position.z = m_target.getAbsolutePosition().z;
+        pose_stamped.pose.position.x = m_target.getPose().position.x;
+        pose_stamped.pose.position.y = m_target.getPose().position.y;
         m_target_path.poses.push_back(pose_stamped);
     }
 }

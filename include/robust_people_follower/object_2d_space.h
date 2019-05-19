@@ -33,46 +33,36 @@
 *********************************************************************/
 
 
-#ifndef ROBUST_PEOPLE_FOLLOWER_TURTLEBOT_H
-#define ROBUST_PEOPLE_FOLLOWER_TURTLEBOT_H
+#ifndef ROBUST_PEOPLE_FOLLOWER_OBJECT_2D_SPACE_H
+#define ROBUST_PEOPLE_FOLLOWER_OBJECT_2D_SPACE_H
 
 
-#include <deque>
-
-#include <geometry_msgs/PointStamped.h>
 #include <geometry_msgs/Pose.h>
-#include <geometry_msgs/Twist.h>
-
-#include "robust_people_follower/object_2d_space.h"
-#include "robust_people_follower/person.h"
 
 
-/**
- * Stores data related to the robot.
- */
-class Turtlebot : public Object2DSpace
+class Object2DSpace
 {
 public:
+    Object2DSpace();
+    virtual void printInfo() const = 0;
+    geometry_msgs::Pose getPose() const;
+    geometry_msgs::Pose getOldPose() const;
+    double getVelocity() const;
+    double getAngle() const;
+    void setPose(const geometry_msgs::Pose& t_pose);
+    void setOldPose(const geometry_msgs::Pose& t_old_pose);
+    void setVelocity(double t_velocity);
+    void setAngle(double t_angle);
+    void updateOldPose();
+    void calculateVelocity(double t_frequency);
+    void calculateAngle();
 
-    enum Status
-    {
-        WAITING = 0,
-        FOLLOWING = 1,
-        SEARCHING = 2
-    };
-
-    Turtlebot();
-    void printInfo() const override;
-    Turtlebot::Status getStatus() const;
-    void setStatus(Turtlebot::Status t_status);
-    geometry_msgs::Twist& setVelocityCommand(const Person& t_target,
-                                             std::deque<geometry_msgs::PointStamped>& t_goal_list,
-                                             geometry_msgs::Twist& t_msg);
-
-private:
-    Turtlebot::Status m_status;
-    double m_current_linear;
-    double m_current_angular;
+protected:
+    geometry_msgs::Pose m_pose;
+    geometry_msgs::Pose m_old_pose;
+    double m_velocity;
+    double m_angle;
 };
 
-#endif //ROBUST_PEOPLE_FOLLOWER_TURTLEBOT_H
+
+#endif //ROBUST_PEOPLE_FOLLOWER_OBJECT_2D_SPACE_H

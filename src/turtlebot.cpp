@@ -36,6 +36,7 @@
 #include "robust_people_follower/turtlebot.h"
 
 
+// TODO: use initializer list
 Turtlebot::Turtlebot()
 {
     m_status = WAITING;
@@ -47,7 +48,7 @@ Turtlebot::Turtlebot()
 }
 
 
-void Turtlebot::printTurtlebotInfo() const
+void Turtlebot::printInfo() const
 {
     const char *status_string;
     switch (m_status) {
@@ -84,48 +85,6 @@ void Turtlebot::setStatus(const Turtlebot::Status t_status)
 }
 
 
-geometry_msgs::Pose Turtlebot::getPose()
-{
-    return m_pose;
-}
-
-
-void Turtlebot::setPose(const geometry_msgs::Pose& t_pose)
-{
-    m_pose = t_pose;
-    calculateAngle();
-}
-
-
-void Turtlebot::updateOldPose()
-{
-    m_old_pose = m_pose;
-}
-
-
-void Turtlebot::calculateVelocity(double t_frequency)
-{
-    m_velocity = sqrt(pow((m_old_pose.position.x - m_pose.position.x), 2) +
-                      pow((m_old_pose.position.y - m_pose.position.y), 2)) / (1 / t_frequency);
-}
-
-
-void Turtlebot::calculateAngle()
-{
-    tf::Quaternion q(m_pose.orientation.x, m_pose.orientation.y, m_pose.orientation.z, m_pose.orientation.w);
-    tf::Matrix3x3 m(q);
-    double roll, pitch, theta;
-    m.getRPY(roll, pitch, theta);
-    m_angle = theta;
-}
-
-
-double Turtlebot::getAngle() const
-{
-    return m_angle;
-}
-
-
 // TODO: test, make threshold variable
 geometry_msgs::Twist& Turtlebot::setVelocityCommand(const Person& t_target,
                                                     std::deque<geometry_msgs::PointStamped>& t_goal_list,
@@ -159,6 +118,7 @@ geometry_msgs::Twist& Turtlebot::setVelocityCommand(const Person& t_target,
                 double distance_to_goal = sqrt(pow(current_goal.point.x - m_pose.position.x, 2)
                                                + pow(current_goal.point.y - m_pose.position.y, 2));
 
+                // roboter has reached the goal
                 if (distance_to_goal < 0.3) {
 
                     // input 20% less acceleration
