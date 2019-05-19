@@ -50,7 +50,7 @@ RobustPeopleFollower::RobustPeopleFollower(const std::string& t_name)
     m_target_path_pub = m_nh.advertise<nav_msgs::Path>("robust_people_follower/target_path", 1000);
     m_visualization_pub = m_nh.advertise<visualization_msgs::Marker>("robust_people_follower/markers", 10);
 
-    m_turtlebot = {};
+    robot = {};
     m_tracked_persons = {};
     m_robot_path = m_target_path = {};
     m_seq_robot = m_seq_target = {};
@@ -76,7 +76,12 @@ void RobustPeopleFollower::runLoop()
         ros::spinOnce();
 
         // set the target's variables
-        setTarget();
+        for (auto& p : m_tracked_persons) {
+            if (p.isTarget()) {
+                m_target = p;
+                break;
+            }
+        }
 
         // add new goal to goal list
         addNewGoal();
@@ -84,8 +89,8 @@ void RobustPeopleFollower::runLoop()
         // TODO: implement actual searching
         // robot loses target
         if (m_target.getDistance() == 0 && m_target.getYDeviation() == 0 &&
-            m_turtlebot.getStatus() == Turtlebot::Status::FOLLOWING) {
-            m_turtlebot.setStatus(Turtlebot::Status::SEARCHING);
+            robot.getStatus() == Robot::Status::FOLLOWING) {
+            robot.setStatus(Robot::Status::SEARCHING);
 
             for (auto& p : m_tracked_persons) {
                 if (p.isTarget()) {
@@ -163,7 +168,7 @@ void RobustPeopleFollower::runLoop()
         // move the robot
         if (m_target.getDistance() != 0) {
             geometry_msgs::Twist speed;
-            speed = m_turtlebot.setVelocityCommand(m_target, m_goal_list, speed);
+            speed = robot.setVelocityCommand(m_target, m_goal_list, speed);
             ROS_INFO("velocity message: linear: %f, angular: %f", speed.linear.x, speed.angular.z);
             m_velocity_command_pub.publish(speed);
         }
@@ -181,7 +186,7 @@ void RobustPeopleFollower::runLoop()
         publishRobotGoals();
 
         // set old position to calculate velocity
-        m_turtlebot.updateOldPose();
+        robot.updateOldPose();
         m_target.updateOldPose();
         for (auto& p : m_tracked_persons) {
             p.updateOldPose();
@@ -207,7 +212,7 @@ void RobustPeopleFollower::debugPrintout()
 
     ROS_INFO("ROS time: %d", ros::Time::now().sec);
 
-    m_turtlebot.printInfo();
+    robot.printInfo();
 
     ROS_INFO("target information:");
     m_target.printVerboseInfo();
@@ -237,7 +242,7 @@ void RobustPeopleFollower::odometryCallback(const nav_msgs::Odometry::ConstPtr& 
     pose.orientation.y = msg->pose.pose.orientation.y;
     pose.orientation.z = msg->pose.pose.orientation.z;
     pose.orientation.w = msg->pose.pose.orientation.w;
-    m_turtlebot.setPose(pose);
+    robot.setPose(pose);
 
     geometry_msgs::PoseStamped pose_stamped;
     pose_stamped.header.seq = m_seq_robot;
@@ -252,8 +257,8 @@ void RobustPeopleFollower::odometryCallback(const nav_msgs::Odometry::ConstPtr& 
     pose_stamped.pose.orientation.w = msg->pose.pose.orientation.w;
     m_robot_path.poses.push_back(pose_stamped);
 
-    m_turtlebot.calculateAngle();
-    m_turtlebot.calculateVelocity(LOOP_FREQUENCY);
+    robot.calculateAngle();
+    robot.calculateVelocity(LOOP_FREQUENCY);
 }
 
 
@@ -293,8 +298,8 @@ void RobustPeopleFollower::skeletonCallback(const body_tracker_msgs::Skeleton::C
 
             // update information
             p.setSkeleton(skeleton);
-            p.calculateAbsolutePosition(m_turtlebot.getPose().position.x, m_turtlebot.getPose().position.y,
-                                        m_turtlebot.getAngle());
+            p.calculateAbsolutePosition(robot.getPose().position.x, robot.getPose().position.y,
+                                        robot.getAngle());
             p.calculateVelocity(LOOP_FREQUENCY);
 
             // target
@@ -323,7 +328,7 @@ void RobustPeopleFollower::skeletonCallback(const body_tracker_msgs::Skeleton::C
                             m_target.setAngle(0.0);
                             */
 
-                            m_turtlebot.setStatus(Turtlebot::Status::WAITING);
+                            robot.setStatus(Robot::Status::WAITING);
 
                             // reset gesture beginning time
                             p.setGestureBegin(ros::Time(0));
@@ -347,7 +352,7 @@ void RobustPeopleFollower::skeletonCallback(const body_tracker_msgs::Skeleton::C
                         // new target selected after 3 seconds of closing both hands
                         if (ros::Time::now().sec - p.getGestureBegin() >= 3) {
                             p.setTarget(true);
-                            m_turtlebot.setStatus(Turtlebot::Status::FOLLOWING);
+                            robot.setStatus(Robot::Status::FOLLOWING);
 
                             // reset gesture beginning time
                             p.setGestureBegin(ros::Time(0));
@@ -361,21 +366,6 @@ void RobustPeopleFollower::skeletonCallback(const body_tracker_msgs::Skeleton::C
     // save new person if new id has been detected
     if (!found) {
         m_tracked_persons.emplace_back(Person(skeleton));
-    }
-}
-
-
-// TODO: use copy assignment operator
-void RobustPeopleFollower::setTarget()
-{
-    for (auto& p : m_tracked_persons) {
-        if (p.isTarget()) {
-            m_target.setSkeleton(p.getSkeleton());
-            m_target.setPose(p.getPose());
-            m_target.calculateVelocity(LOOP_FREQUENCY);
-            m_target.setAngle(p.getAngle());
-            break;
-        }
     }
 }
 

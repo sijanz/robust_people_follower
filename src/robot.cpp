@@ -33,11 +33,11 @@
 *********************************************************************/
 
 
-#include "robust_people_follower/turtlebot.h"
+#include "robust_people_follower/robot.h"
 
 
 // TODO: use initializer list
-Turtlebot::Turtlebot()
+Robot::Robot()
 {
     m_status = WAITING;
     m_velocity = 0.0;
@@ -48,7 +48,7 @@ Turtlebot::Turtlebot()
 }
 
 
-void Turtlebot::printInfo() const
+void Robot::printInfo() const
 {
     const char *status_string;
     switch (m_status) {
@@ -63,7 +63,7 @@ void Turtlebot::printInfo() const
             break;
     }
 
-    ROS_INFO("Turtlebot information:");
+    ROS_INFO("Robot information:");
     ROS_INFO("  status: [%s]", status_string);
     ROS_INFO("  velocity: %f", m_velocity);
     ROS_INFO("  position:");
@@ -73,22 +73,22 @@ void Turtlebot::printInfo() const
 }
 
 
-Turtlebot::Status Turtlebot::getStatus() const
+Robot::Status Robot::getStatus() const
 {
     return m_status;
 }
 
 
-void Turtlebot::setStatus(const Turtlebot::Status t_status)
+void Robot::setStatus(const Robot::Status t_status)
 {
     m_status = t_status;
 }
 
 
 // TODO: test, make threshold variable
-geometry_msgs::Twist& Turtlebot::setVelocityCommand(const Person& t_target,
-                                                    std::deque<geometry_msgs::PointStamped>& t_goal_list,
-                                                    geometry_msgs::Twist& t_msg)
+geometry_msgs::Twist& Robot::setVelocityCommand(const Person& t_target,
+                                                std::deque<geometry_msgs::PointStamped>& t_goal_list,
+                                                geometry_msgs::Twist& t_msg)
 {
     t_msg.linear.x = 0.0;
     t_msg.angular.z = 0.0;

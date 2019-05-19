@@ -33,8 +33,8 @@
 *********************************************************************/
 
 
-#ifndef ROBUST_PEOPLE_FOLLOWER_TURTLEBOT_H
-#define ROBUST_PEOPLE_FOLLOWER_TURTLEBOT_H
+#ifndef ROBUST_PEOPLE_FOLLOWER_ROBOT_H
+#define ROBUST_PEOPLE_FOLLOWER_ROBOT_H
 
 
 #include <deque>
@@ -50,7 +50,7 @@
 /**
  * Stores data related to the robot.
  */
-class Turtlebot : public Object2DSpace
+class Robot : public Object2DSpace
 {
 public:
 
@@ -61,18 +61,19 @@ public:
         SEARCHING = 2
     };
 
-    Turtlebot();
+    Robot();
     void printInfo() const override;
-    Turtlebot::Status getStatus() const;
-    void setStatus(Turtlebot::Status t_status);
+    Robot::Status getStatus() const;
+    void setStatus(Robot::Status t_status);
     geometry_msgs::Twist& setVelocityCommand(const Person& t_target,
                                              std::deque<geometry_msgs::PointStamped>& t_goal_list,
                                              geometry_msgs::Twist& t_msg);
 
 private:
-    Turtlebot::Status m_status;
+    Robot::Status m_status;
     double m_current_linear;
     double m_current_angular;
 };
 
-#endif //ROBUST_PEOPLE_FOLLOWER_TURTLEBOT_H
+
+#endif //ROBUST_PEOPLE_FOLLOWER_ROBOT_H

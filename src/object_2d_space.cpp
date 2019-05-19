@@ -38,8 +38,8 @@
 #include "robust_people_follower/object_2d_space.h"
 
 
-Object2DSpace::Object2DSpace() : m_pose(geometry_msgs::Pose{}),
-                                 m_old_pose(geometry_msgs::Pose{}), m_velocity(0.0), m_angle(0.0)
+Object2DSpace::Object2DSpace() : m_pose(geometry_msgs::Pose{}), m_old_pose(geometry_msgs::Pose{}),
+                                 m_velocity(0.0), m_angle(0.0)
 {}
 
 

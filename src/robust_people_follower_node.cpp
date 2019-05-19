@@ -34,7 +34,7 @@
 
 
 #include "robust_people_follower/robust_people_follower.h"
-#include "robust_people_follower/turtlebot.h"
+#include "robust_people_follower/robot.h"
 
 
 int main(int argc, char **argv)
