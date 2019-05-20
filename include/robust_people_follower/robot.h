@@ -70,10 +70,10 @@ public:
 
     void calculateAngle() override;
 
-    // setter
+    // setters
     inline Robot::Status& status() { return m_status; }
 
-    // getter
+    // getters
     inline const Robot::Status status() const { return m_status; }
 
 private:

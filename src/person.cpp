@@ -47,7 +47,7 @@ Person& Person::operator=(const Person& rhs)
 {
     m_is_target = rhs.m_is_target;
     m_velocity = rhs.m_velocity;
-    m_angle = rhs.m_angle;
+    m_angle_radian = rhs.m_angle_radian;
     m_gesture_begin = rhs.m_gesture_begin;
     m_pose = rhs.m_pose;
     m_old_pose = rhs.m_old_pose;
@@ -72,7 +72,7 @@ void Person::printVerboseInfo() const
     ROS_INFO("  position (absolute):");
     ROS_INFO("    x: %f", m_pose.position.x);
     ROS_INFO("    y: %f", m_pose.position.y);
-    ROS_INFO("  theta: %f", m_angle);
+    ROS_INFO("  theta: %f", m_angle_radian);
     ROS_INFO("  distance: %f", m_skeleton.centerOfMass.x);
     ROS_INFO("  y-deviation of center of mass: %f\n", m_skeleton.centerOfMass.y);
 }
@@ -95,5 +95,6 @@ bool Person::hasCorrectHandHeight() const
 
 void Person::calculateAngle()
 {
-    m_angle = std::atan2((m_pose.position.y - m_old_pose.position.y), (m_pose.position.x - m_old_pose.position.x));
+    m_angle_radian = std::atan2((m_pose.position.y - m_old_pose.position.y),
+                                (m_pose.position.x - m_old_pose.position.x));
 }

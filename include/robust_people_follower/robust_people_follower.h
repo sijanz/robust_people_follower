@@ -55,7 +55,6 @@
 class RobustPeopleFollower
 {
 public:
-
     explicit RobustPeopleFollower(const std::string& t_name);
     ~RobustPeopleFollower();
     void runLoop();
@@ -67,6 +66,7 @@ private:
     // name of the node
     std::string m_name;
 
+    // ROS node handle
     ros::NodeHandle m_nh;
 
     // subscribers

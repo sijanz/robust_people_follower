@@ -58,12 +58,12 @@ public:
     void printInfo() const override;
     void printVerboseInfo() const;
 
-    // setter
+    // setters
     inline bool& target() { return m_is_target; }
     inline body_tracker_msgs::Skeleton& skeleton() { return m_skeleton; }
     inline ros::Time& gestureBegin() { return m_gesture_begin; }
 
-    // getter
+    // getters
     inline const int id() const { return m_skeleton.body_id; }
     inline const bool target() const { return m_is_target; }
     inline const ros::Time& gestureBegin() const { return m_gesture_begin; }

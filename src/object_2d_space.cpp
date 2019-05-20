@@ -39,7 +39,7 @@
 
 
 Object2DSpace::Object2DSpace() : m_pose(geometry_msgs::Pose{}), m_old_pose(geometry_msgs::Pose{}),
-                                 m_velocity(0.0), m_angle(0.0) {}
+                                 m_velocity(0.0), m_angle_radian(0.0) {}
 
 
 void Object2DSpace::updateOldPose()

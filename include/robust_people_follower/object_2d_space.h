@@ -49,15 +49,15 @@ public:
     virtual void printInfo() const = 0;
     virtual void calculateAngle() = 0;
 
-    // setter
+    // setters
     inline geometry_msgs::Pose& pose() { return m_pose; }
     inline geometry_msgs::Pose& oldPose() { return m_old_pose; }
-    inline double& angle() { return m_angle; }
+    inline double& angle() { return m_angle_radian; }
 
-    // getter
+    // getters
     inline const geometry_msgs::Pose& pose() const { return m_pose; }
     inline const double velocity() const { return m_velocity; }
-    inline const double angle() const { return m_angle; }
+    inline const double angle() const { return m_angle_radian; }
 
     void updateOldPose();
     void calculateVelocity(double t_frequency);
@@ -66,7 +66,7 @@ protected:
     geometry_msgs::Pose m_pose;
     geometry_msgs::Pose m_old_pose;
     double m_velocity;
-    double m_angle;
+    double m_angle_radian;
 };
 
 

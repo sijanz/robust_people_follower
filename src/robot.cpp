@@ -62,7 +62,7 @@ void Robot::printInfo() const
     ROS_INFO("  position:");
     ROS_INFO("    x: %f", m_pose.position.x);
     ROS_INFO("    y: %f", m_pose.position.y);
-    ROS_INFO("  theta: %f\n", m_angle);
+    ROS_INFO("  theta: %f\n", m_angle_radian);
 }
 
 
@@ -116,12 +116,12 @@ geometry_msgs::Twist Robot::setVelocityCommand(const Person& t_target,
                         current_goal = t_goal_list.at(0);
 
                     // FIXME: threshold must be smaller to negate pendulum effect
-                } else if (angle_to_goal - m_angle > 0.2)
+                } else if (angle_to_goal - m_angle_radian > 0.2)
                     //speed.angular.z = 1.0;
-                    speed.angular.z = 0.5 * (angle_to_goal - m_angle);
-                else if (angle_to_goal - m_angle < -0.2)
+                    speed.angular.z = 0.5 * (angle_to_goal - m_angle_radian);
+                else if (angle_to_goal - m_angle_radian < -0.2)
                     //speed.angular.z = 1.0;
-                    speed.angular.z = -0.5 * std::abs(angle_to_goal - m_angle);
+                    speed.angular.z = -0.5 * std::abs(angle_to_goal - m_angle_radian);
                 //speed.linear.x = 0.32 * (t_target.getDistance() / 1000) - 0.576;
                 speed.linear.x = 0.3;
 
@@ -168,11 +168,11 @@ geometry_msgs::Twist Robot::setVelocityCommand(const Person& t_target,
 
 void Robot::calculateAngle()
 {
-
     tf::Quaternion q(m_pose.orientation.x, m_pose.orientation.y, m_pose.orientation.z, m_pose.orientation.w);
     tf::Matrix3x3 m(q);
+
     double roll, pitch, theta;
     m.getRPY(roll, pitch, theta);
 
-    m_angle = theta;
+    m_angle_radian = theta;
 }
