@@ -50,7 +50,7 @@ RobustPeopleFollower::RobustPeopleFollower(const std::string& t_name)
     m_target_path_pub = m_nh.advertise<nav_msgs::Path>("robust_people_follower/target_path", 1000);
     m_visualization_pub = m_nh.advertise<visualization_msgs::Marker>("robust_people_follower/markers", 10);
 
-    robot = {};
+    m_robot = {};
     m_tracked_persons = {};
     m_robot_path = m_target_path = {};
     m_seq_robot = m_seq_target = {};
@@ -89,8 +89,8 @@ void RobustPeopleFollower::runLoop()
         // TODO: implement actual searching
         // robot loses target
         if (m_target.getDistance() == 0 && m_target.getYDeviation() == 0 &&
-            robot.getStatus() == Robot::Status::FOLLOWING) {
-            robot.setStatus(Robot::Status::SEARCHING);
+            m_robot.getStatus() == Robot::Status::FOLLOWING) {
+            m_robot.setStatus(Robot::Status::SEARCHING);
 
             for (auto& p : m_tracked_persons) {
                 if (p.isTarget()) {
@@ -161,22 +161,14 @@ void RobustPeopleFollower::runLoop()
 
         debugPrintout();
 
-        // DEBUG
-        ROS_INFO("before moving");
-
         // TODO: test
         // move the robot
         if (m_target.getDistance() != 0) {
             geometry_msgs::Twist speed;
-            speed = robot.setVelocityCommand(m_target, m_goal_list, speed);
+            speed = m_robot.setVelocityCommand(m_target, m_goal_list, speed);
             ROS_INFO("velocity message: linear: %f, angular: %f", speed.linear.x, speed.angular.z);
             m_velocity_command_pub.publish(speed);
         }
-
-        // DEBUG
-        // FIXME: seg fault
-        ROS_INFO("after moving");
-
 
         // publish markers to view in RViz
         publishRobotPath();
@@ -186,7 +178,7 @@ void RobustPeopleFollower::runLoop()
         publishRobotGoals();
 
         // set old position to calculate velocity
-        robot.updateOldPose();
+        m_robot.updateOldPose();
         m_target.updateOldPose();
         for (auto& p : m_tracked_persons) {
             p.updateOldPose();
@@ -212,7 +204,7 @@ void RobustPeopleFollower::debugPrintout()
 
     ROS_INFO("ROS time: %d", ros::Time::now().sec);
 
-    robot.printInfo();
+    m_robot.printInfo();
 
     ROS_INFO("target information:");
     m_target.printVerboseInfo();
@@ -242,7 +234,7 @@ void RobustPeopleFollower::odometryCallback(const nav_msgs::Odometry::ConstPtr& 
     pose.orientation.y = msg->pose.pose.orientation.y;
     pose.orientation.z = msg->pose.pose.orientation.z;
     pose.orientation.w = msg->pose.pose.orientation.w;
-    robot.setPose(pose);
+    m_robot.setPose(pose);
 
     geometry_msgs::PoseStamped pose_stamped;
     pose_stamped.header.seq = m_seq_robot;
@@ -257,8 +249,8 @@ void RobustPeopleFollower::odometryCallback(const nav_msgs::Odometry::ConstPtr& 
     pose_stamped.pose.orientation.w = msg->pose.pose.orientation.w;
     m_robot_path.poses.push_back(pose_stamped);
 
-    robot.calculateAngle();
-    robot.calculateVelocity(LOOP_FREQUENCY);
+    m_robot.calculateAngle();
+    m_robot.calculateVelocity(LOOP_FREQUENCY);
 }
 
 
@@ -298,8 +290,9 @@ void RobustPeopleFollower::skeletonCallback(const body_tracker_msgs::Skeleton::C
 
             // update information
             p.setSkeleton(skeleton);
-            p.calculateAbsolutePosition(robot.getPose().position.x, robot.getPose().position.y,
-                                        robot.getAngle());
+            p.calculateAbsolutePosition(m_robot.getPose().position.x, m_robot.getPose().position.y,
+                                        m_robot.getAngle());
+            p.calculateAngle();
             p.calculateVelocity(LOOP_FREQUENCY);
 
             // target
@@ -328,7 +321,7 @@ void RobustPeopleFollower::skeletonCallback(const body_tracker_msgs::Skeleton::C
                             m_target.setAngle(0.0);
                             */
 
-                            robot.setStatus(Robot::Status::WAITING);
+                            m_robot.setStatus(Robot::Status::WAITING);
 
                             // reset gesture beginning time
                             p.setGestureBegin(ros::Time(0));
@@ -352,7 +345,7 @@ void RobustPeopleFollower::skeletonCallback(const body_tracker_msgs::Skeleton::C
                         // new target selected after 3 seconds of closing both hands
                         if (ros::Time::now().sec - p.getGestureBegin() >= 3) {
                             p.setTarget(true);
-                            robot.setStatus(Robot::Status::FOLLOWING);
+                            m_robot.setStatus(Robot::Status::FOLLOWING);
 
                             // reset gesture beginning time
                             p.setGestureBegin(ros::Time(0));
@@ -396,7 +389,7 @@ void RobustPeopleFollower::publishPersonMarkers() const
 
     int i = 0;
     for (auto& p : m_tracked_persons) {
-        if (p.getDistance() > 0 && p.getDistance() < 3990) {
+        if (p.getDistance() > 0) {
             visualization_msgs::Marker marker;
             marker.header.frame_id = "odom";
             marker.header.stamp = ros::Time();
@@ -447,7 +440,7 @@ void RobustPeopleFollower::publishPersonVectors() const
 
     int i = 0;
     for (auto& p : m_tracked_persons) {
-        if (p.getDistance() > 0 && p.getDistance() < 3990) {
+        if (p.getDistance() > 0) {
             visualization_msgs::Marker vector;
             vector.header.frame_id = "odom";
             vector.header.stamp = ros::Time();

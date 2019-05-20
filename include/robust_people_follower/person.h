@@ -68,6 +68,7 @@ public:
     void setSkeleton(const body_tracker_msgs::Skeleton& t_skeleton);
     void setGestureBegin(const ros::Time& t_gesture_begin);
     void calculateAbsolutePosition(double t_robot_x, double t_robot_y, double t_robot_angle);
+    void calculateAngle() override;
 
 private:
     bool m_is_target;

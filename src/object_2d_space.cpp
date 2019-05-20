@@ -102,13 +102,3 @@ void Object2DSpace::calculateVelocity(double t_frequency)
     m_velocity = sqrt(pow((m_old_pose.position.x - m_pose.position.x), 2) +
                       pow((m_old_pose.position.y - m_pose.position.y), 2)) / (1 / t_frequency);
 }
-
-
-void Object2DSpace::calculateAngle()
-{
-    tf::Quaternion q(m_pose.orientation.x, m_pose.orientation.y, m_pose.orientation.z, m_pose.orientation.w);
-    tf::Matrix3x3 m(q);
-    double roll, pitch, theta;
-    m.getRPY(roll, pitch, theta);
-    m_angle = theta;
-}

@@ -86,7 +86,7 @@ private:
     const double VECTOR_LENGTH_FACTOR = 1.0;
 
     // instance of the turtlebot robot
-    Robot robot;
+    Robot m_robot;
 
     // instance of the target to follow
     Person m_target;

@@ -33,6 +33,8 @@
 *********************************************************************/
 
 
+#include <tf/transform_datatypes.h>
+
 #include "robust_people_follower/robot.h"
 
 
@@ -164,5 +166,20 @@ geometry_msgs::Twist& Robot::setVelocityCommand(const Person& t_target,
     m_current_linear = t_msg.linear.x;
     m_current_angular = t_msg.angular.z;
 
+    // FIXME: robot is stationary only
+    // t_msg.linear.x = 0.0;
+
     return t_msg;
+}
+
+
+void Robot::calculateAngle()
+{
+
+    tf::Quaternion q(m_pose.orientation.x, m_pose.orientation.y, m_pose.orientation.z, m_pose.orientation.w);
+    tf::Matrix3x3 m(q);
+    double roll, pitch, theta;
+    m.getRPY(roll, pitch, theta);
+
+    m_angle = theta;
 }

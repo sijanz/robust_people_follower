@@ -153,12 +153,16 @@ void Person::calculateAbsolutePosition(double t_robot_x, double t_robot_y, doubl
                                      sin(t_robot_angle) * (m_skeleton.centerOfMass.y / 1000));
     m_pose.position.y = t_robot_y + (sin(t_robot_angle) * (m_skeleton.centerOfMass.x / 1000) +
                                      cos(t_robot_angle) * (m_skeleton.centerOfMass.y / 1000));
-
-    calculateAngle();
 }
 
 
 bool Person::hasCorrectHandHeight() const
 {
     return m_skeleton.joint_position_left_hand.z > m_skeleton.joint_position_spine_top.z;
+}
+
+
+void Person::calculateAngle()
+{
+    m_angle = std::atan2((m_pose.position.y - m_old_pose.position.y), (m_pose.position.x - m_old_pose.position.x));
 }

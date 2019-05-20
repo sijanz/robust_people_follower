@@ -55,7 +55,7 @@ public:
     void setAngle(double t_angle);
     void updateOldPose();
     void calculateVelocity(double t_frequency);
-    void calculateAngle();
+    virtual void calculateAngle() = 0;
 
 protected:
     geometry_msgs::Pose m_pose;

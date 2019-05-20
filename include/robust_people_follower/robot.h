@@ -68,6 +68,7 @@ public:
     geometry_msgs::Twist& setVelocityCommand(const Person& t_target,
                                              std::deque<geometry_msgs::PointStamped>& t_goal_list,
                                              geometry_msgs::Twist& t_msg);
+    void calculateAngle() override;
 
 private:
     Robot::Status m_status;
