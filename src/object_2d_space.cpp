@@ -73,24 +73,6 @@ void Object2DSpace::setPose(const geometry_msgs::Pose& t_pose)
 }
 
 
-void Object2DSpace::setOldPose(const geometry_msgs::Pose& t_old_pose)
-{
-    m_old_pose = t_old_pose;
-}
-
-
-void Object2DSpace::setVelocity(double t_velocity)
-{
-    m_velocity = t_velocity;
-}
-
-
-void Object2DSpace::setAngle(double t_angle)
-{
-    m_angle = t_angle;
-}
-
-
 void Object2DSpace::updateOldPose()
 {
     m_old_pose = m_pose;

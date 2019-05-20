@@ -59,7 +59,6 @@ public:
     void printVerboseInfo() const;
     int getId() const;
     bool isTarget() const;
-    body_tracker_msgs::Skeleton getSkeleton() const;
     int getGestureBegin() const;
     double getDistance() const;
     double getYDeviation() const;

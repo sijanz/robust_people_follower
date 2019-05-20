@@ -98,12 +98,6 @@ void Person::setTarget(bool t_is_target)
 }
 
 
-body_tracker_msgs::Skeleton Person::getSkeleton() const
-{
-    return m_skeleton;
-}
-
-
 void Person::setSkeleton(const body_tracker_msgs::Skeleton& t_skeleton)
 {
     m_skeleton = t_skeleton;

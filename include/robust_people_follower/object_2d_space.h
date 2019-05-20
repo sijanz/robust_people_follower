@@ -50,9 +50,6 @@ public:
     double getVelocity() const;
     double getAngle() const;
     void setPose(const geometry_msgs::Pose& t_pose);
-    void setOldPose(const geometry_msgs::Pose& t_old_pose);
-    void setVelocity(double t_velocity);
-    void setAngle(double t_angle);
     void updateOldPose();
     void calculateVelocity(double t_frequency);
     virtual void calculateAngle() = 0;
