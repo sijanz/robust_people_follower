@@ -38,8 +38,7 @@
 #include "robust_people_follower/robot.h"
 
 
-Robot::Robot() : m_status(WAITING), m_current_linear(0.0), m_current_angular(0.0)
-{}
+Robot::Robot() : m_status(WAITING), m_current_linear(0.0), m_current_angular(0.0) {}
 
 
 void Robot::printInfo() const
@@ -67,23 +66,11 @@ void Robot::printInfo() const
 }
 
 
-Robot::Status Robot::getStatus() const
-{
-    return m_status;
-}
-
-
-void Robot::setStatus(const Robot::Status t_status)
-{
-    m_status = t_status;
-}
-
-
 // TODO: test, make threshold variable
 geometry_msgs::Twist Robot::setVelocityCommand(const Person& t_target,
                                                std::deque<geometry_msgs::PointStamped>& t_goal_list)
 {
-    if (t_target.getDistance() < 1800)
+    if (t_target.distance() < 1800)
         t_goal_list.clear();
 
     geometry_msgs::Twist speed;
@@ -95,17 +82,17 @@ geometry_msgs::Twist Robot::setVelocityCommand(const Person& t_target,
         if (!t_goal_list.empty()) {
 
             // move backwards if target is too near
-            if (t_target.getDistance() < 1000 && t_target.getDistance() > 0)
-                speed.linear.x = 2 * (t_target.getDistance() / 1000) - 2;
-            else if (t_target.getDistance() > 1000 && t_target.getDistance() < 1800) {
-                if (t_target.getYDeviation() < -50) {
-                    speed.angular.z = -0.0025 * std::abs(t_target.getYDeviation());
+            if (t_target.distance() < 1000 && t_target.distance() > 0)
+                speed.linear.x = 2 * (t_target.distance() / 1000) - 2;
+            else if (t_target.distance() > 1000 && t_target.distance() < 1800) {
+                if (t_target.yDeviation() < -50) {
+                    speed.angular.z = -0.0025 * std::abs(t_target.yDeviation());
                     ROS_INFO("[TURNING LEFT at %f]", speed.angular.z);
-                } else if (t_target.getYDeviation() > 50) {
-                    speed.angular.z = 0.0025 * t_target.getYDeviation();
+                } else if (t_target.yDeviation() > 50) {
+                    speed.angular.z = 0.0025 * t_target.yDeviation();
                     ROS_INFO("[TURNING RIGHT at %f]", speed.angular.z);
                 }
-            } else if (t_target.getDistance() == 0 || t_target.getDistance() > 1800) {
+            } else if (t_target.distance() == 0 || t_target.distance() > 1800) {
                 geometry_msgs::PointStamped& current_goal = t_goal_list.at(0);
 
 
@@ -145,16 +132,16 @@ geometry_msgs::Twist Robot::setVelocityCommand(const Person& t_target,
         else {
 
             // angular velocity
-            if (t_target.getYDeviation() < -50) {
-                speed.angular.z = -0.0025 * std::abs(t_target.getYDeviation());
-            } else if (t_target.getYDeviation() > 50) {
-                speed.angular.z = 0.0025 * t_target.getYDeviation();
+            if (t_target.yDeviation() < -50) {
+                speed.angular.z = -0.0025 * std::abs(t_target.yDeviation());
+            } else if (t_target.yDeviation() > 50) {
+                speed.angular.z = 0.0025 * t_target.yDeviation();
             } else
                 speed.angular.z = 0;
 
             // linear velocity
-            if (t_target.getDistance() < 1000 && t_target.getDistance() > 0.0) {
-                speed.linear.x = 2 * (t_target.getDistance() / 1000) - 2;
+            if (t_target.distance() < 1000 && t_target.distance() > 0.0) {
+                speed.linear.x = 2 * (t_target.distance() / 1000) - 2;
             }
         }
     }

@@ -36,13 +36,11 @@
 #include "robust_people_follower/person.h"
 
 
-Person::Person() : m_is_target(false), m_gesture_begin(ros::Time(0)), m_skeleton(body_tracker_msgs::Skeleton{})
-{}
+Person::Person() : m_is_target(false), m_gesture_begin(ros::Time(0)), m_skeleton(body_tracker_msgs::Skeleton{}) {}
 
 
 Person::Person(const body_tracker_msgs::Skeleton& t_skeleton) : m_is_target(false), m_gesture_begin(ros::Time(0)),
-                                                                m_skeleton(t_skeleton)
-{}
+                                                                m_skeleton(t_skeleton) {}
 
 
 Person& Person::operator=(const Person& rhs)
@@ -77,54 +75,6 @@ void Person::printVerboseInfo() const
     ROS_INFO("  theta: %f", m_angle);
     ROS_INFO("  distance: %f", m_skeleton.centerOfMass.x);
     ROS_INFO("  y-deviation of center of mass: %f\n", m_skeleton.centerOfMass.y);
-}
-
-
-int Person::getId() const
-{
-    return m_skeleton.body_id;
-}
-
-
-bool Person::isTarget() const
-{
-    return m_is_target;
-}
-
-
-void Person::setTarget(bool t_is_target)
-{
-    m_is_target = t_is_target;
-}
-
-
-void Person::setSkeleton(const body_tracker_msgs::Skeleton& t_skeleton)
-{
-    m_skeleton = t_skeleton;
-}
-
-
-int Person::getGestureBegin() const
-{
-    return m_gesture_begin.sec;
-}
-
-
-void Person::setGestureBegin(const ros::Time& t_gesture_begin)
-{
-    m_gesture_begin = t_gesture_begin;
-}
-
-
-double Person::getDistance() const
-{
-    return m_skeleton.centerOfMass.x;
-}
-
-
-double Person::getYDeviation() const
-{
-    return m_skeleton.centerOfMass.y;
 }
 
 

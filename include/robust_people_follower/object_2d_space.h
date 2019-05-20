@@ -44,15 +44,23 @@ class Object2DSpace
 {
 public:
     Object2DSpace();
+
+    // pure virtual methods
     virtual void printInfo() const = 0;
-    geometry_msgs::Pose getPose() const;
-    geometry_msgs::Pose getOldPose() const;
-    double getVelocity() const;
-    double getAngle() const;
-    void setPose(const geometry_msgs::Pose& t_pose);
+    virtual void calculateAngle() = 0;
+
+    // setter
+    inline geometry_msgs::Pose& pose() { return m_pose; }
+    inline geometry_msgs::Pose& oldPose() { return m_old_pose; }
+    inline double& angle() { return m_angle; }
+
+    // getter
+    inline const geometry_msgs::Pose& pose() const { return m_pose; }
+    inline const double velocity() const { return m_velocity; }
+    inline const double angle() const { return m_angle; }
+
     void updateOldPose();
     void calculateVelocity(double t_frequency);
-    virtual void calculateAngle() = 0;
 
 protected:
     geometry_msgs::Pose m_pose;

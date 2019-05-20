@@ -63,11 +63,18 @@ public:
 
     Robot();
     void printInfo() const override;
-    Robot::Status getStatus() const;
-    void setStatus(Robot::Status t_status);
+
+    // TODO: rename
     geometry_msgs::Twist setVelocityCommand(const Person& t_target,
                                             std::deque<geometry_msgs::PointStamped>& t_goal_list);
+
     void calculateAngle() override;
+
+    // setter
+    inline Robot::Status& status() { return m_status; }
+
+    // getter
+    inline const Robot::Status status() const { return m_status; }
 
 private:
     Robot::Status m_status;

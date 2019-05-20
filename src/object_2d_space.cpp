@@ -39,38 +39,7 @@
 
 
 Object2DSpace::Object2DSpace() : m_pose(geometry_msgs::Pose{}), m_old_pose(geometry_msgs::Pose{}),
-                                 m_velocity(0.0), m_angle(0.0)
-{}
-
-
-geometry_msgs::Pose Object2DSpace::getPose() const
-{
-    return m_pose;
-}
-
-
-geometry_msgs::Pose Object2DSpace::getOldPose() const
-{
-    return m_old_pose;
-}
-
-
-double Object2DSpace::getVelocity() const
-{
-    return m_velocity;
-}
-
-
-double Object2DSpace::getAngle() const
-{
-    return m_angle;
-}
-
-
-void Object2DSpace::setPose(const geometry_msgs::Pose& t_pose)
-{
-    m_pose = t_pose;
-}
+                                 m_velocity(0.0), m_angle(0.0) {}
 
 
 void Object2DSpace::updateOldPose()

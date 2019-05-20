@@ -57,15 +57,20 @@ public:
     Person& operator=(const Person& rhs);
     void printInfo() const override;
     void printVerboseInfo() const;
-    int getId() const;
-    bool isTarget() const;
-    int getGestureBegin() const;
-    double getDistance() const;
-    double getYDeviation() const;
+
+    // setter
+    inline bool& target() { return m_is_target; }
+    inline body_tracker_msgs::Skeleton& skeleton() { return m_skeleton; }
+    inline ros::Time& gestureBegin() { return m_gesture_begin; }
+
+    // getter
+    inline const int id() const { return m_skeleton.body_id; }
+    inline const bool target() const { return m_is_target; }
+    inline const ros::Time& gestureBegin() const { return m_gesture_begin; }
+    inline const double distance() const { return m_skeleton.centerOfMass.x; }
+    inline const double yDeviation() const { return m_skeleton.centerOfMass.y; }
+
     bool hasCorrectHandHeight() const;
-    void setTarget(bool t_is_target);
-    void setSkeleton(const body_tracker_msgs::Skeleton& t_skeleton);
-    void setGestureBegin(const ros::Time& t_gesture_begin);
     void calculateAbsolutePosition(double t_robot_x, double t_robot_y, double t_robot_angle);
     void calculateAngle() override;
 

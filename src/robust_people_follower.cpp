@@ -77,7 +77,7 @@ void RobustPeopleFollower::runLoop()
 
         // set the target's variables
         for (auto& p : m_tracked_persons) {
-            if (p.isTarget()) {
+            if (p.target()) {
                 m_target = p;
                 break;
             }
@@ -88,12 +88,12 @@ void RobustPeopleFollower::runLoop()
 
         // TODO: implement actual searching
         // robot loses target
-        if (m_target.getDistance() == 0 && m_target.getYDeviation() == 0 &&
-            m_robot.getStatus() == Robot::Status::FOLLOWING) {
-            m_robot.setStatus(Robot::Status::SEARCHING);
+        if (m_target.distance() == 0 && m_target.distance() == 0 &&
+            m_robot.status() == Robot::Status::FOLLOWING) {
+            m_robot.status() = Robot::Status::SEARCHING;
 
             for (auto& p : m_tracked_persons) {
-                if (p.isTarget()) {
+                if (p.target()) {
 
                     // publish estimation marker
                     visualization_msgs::Marker marker;
@@ -103,8 +103,8 @@ void RobustPeopleFollower::runLoop()
                     marker.type = visualization_msgs::Marker::MESH_RESOURCE;
                     marker.action = visualization_msgs::Marker::ADD;
                     marker.lifetime = ros::Duration(10);
-                    marker.pose.position.x = m_target.getOldPose().position.x;
-                    marker.pose.position.y = m_target.getOldPose().position.y;
+                    marker.pose.position.x = m_target.oldPose().position.x;
+                    marker.pose.position.y = m_target.oldPose().position.y;
                     marker.pose.position.z = 0.0;
                     marker.pose.orientation.x = 0.0;
                     marker.pose.orientation.y = 0.0;
@@ -163,7 +163,7 @@ void RobustPeopleFollower::runLoop()
 
         // TODO: test
         // move the robot
-        if (m_target.getDistance() != 0) {
+        if (m_target.distance() != 0) {
             geometry_msgs::Twist speed = m_robot.setVelocityCommand(m_target, m_goal_list);
 
             // DEBUG
@@ -233,7 +233,7 @@ void RobustPeopleFollower::odometryCallback(const nav_msgs::Odometry::ConstPtr& 
     pose.orientation.y = msg->pose.pose.orientation.y;
     pose.orientation.z = msg->pose.pose.orientation.z;
     pose.orientation.w = msg->pose.pose.orientation.w;
-    m_robot.setPose(pose);
+    m_robot.pose() = pose;
 
     geometry_msgs::PoseStamped pose_stamped;
     pose_stamped.header.seq = m_seq_robot;
@@ -284,31 +284,31 @@ void RobustPeopleFollower::skeletonCallback(const body_tracker_msgs::Skeleton::C
 
     bool found = false;
     for (auto& p : m_tracked_persons) {
-        if (p.getId() == skeleton.body_id) {
+        if (p.id() == skeleton.body_id) {
             found = true;
 
             // update information
-            p.setSkeleton(skeleton);
-            p.calculateAbsolutePosition(m_robot.getPose().position.x, m_robot.getPose().position.y,
-                                        m_robot.getAngle());
+            p.skeleton() = skeleton;
+            p.calculateAbsolutePosition(m_robot.pose().position.x, m_robot.pose().position.y,
+                                        m_robot.angle());
             p.calculateAngle();
             p.calculateVelocity(LOOP_FREQUENCY);
 
             // target
-            if (p.isTarget()) {
+            if (p.target()) {
 
                 // check for gestures
                 if (skeleton.gesture == 2 && p.hasCorrectHandHeight()) {
-                    if (p.getGestureBegin() == 0) {
-                        p.setGestureBegin(ros::Time::now());
+                    if (p.gestureBegin() == ros::Time(0)) {
+                        p.gestureBegin() = ros::Time::now();
                     }
                 } else {
-                    if (p.getGestureBegin() != 0) {
+                    if (p.gestureBegin() != ros::Time(0)) {
 
                         // TODO: figure out how to play a sound
                         // target chooses to stop being followed
-                        if (ros::Time::now().sec - p.getGestureBegin() >= 3) {
-                            p.setTarget(false);
+                        if (ros::Time::now().sec - p.gestureBegin().sec >= 3) {
+                            p.target() = false;
 
                             // reset target's information
                             /*
@@ -320,10 +320,10 @@ void RobustPeopleFollower::skeletonCallback(const body_tracker_msgs::Skeleton::C
                             m_target.setAngle(0.0);
                             */
 
-                            m_robot.setStatus(Robot::Status::WAITING);
+                            m_robot.status() = Robot::Status::WAITING;
 
                             // reset gesture beginning time
-                            p.setGestureBegin(ros::Time(0));
+                            p.gestureBegin() = ros::Time(0);
                         }
                     }
                 }
@@ -334,20 +334,20 @@ void RobustPeopleFollower::skeletonCallback(const body_tracker_msgs::Skeleton::C
 
                 // check for gestures
                 if (skeleton.gesture == 2 && p.hasCorrectHandHeight()) {
-                    if (p.getGestureBegin() == 0) {
-                        p.setGestureBegin(ros::Time::now());
+                    if (p.gestureBegin() == ros::Time(0)) {
+                        p.gestureBegin() = ros::Time::now();
                     }
                 } else {
-                    if (p.getGestureBegin() != 0) {
+                    if (p.gestureBegin() != ros::Time(0)) {
 
                         // TODO: figure out how to play a sound
                         // new target selected after 3 seconds of closing both hands
-                        if (ros::Time::now().sec - p.getGestureBegin() >= 3) {
-                            p.setTarget(true);
-                            m_robot.setStatus(Robot::Status::FOLLOWING);
+                        if (ros::Time::now().sec - p.gestureBegin().sec >= 3) {
+                            p.target() = true;
+                            m_robot.status() = Robot::Status::FOLLOWING;
 
                             // reset gesture beginning time
-                            p.setGestureBegin(ros::Time(0));
+                            p.gestureBegin() = ros::Time(0);
                         }
                     }
                 }
@@ -388,7 +388,7 @@ void RobustPeopleFollower::publishPersonMarkers() const
 
     int i = 0;
     for (auto& p : m_tracked_persons) {
-        if (p.getDistance() > 0) {
+        if (p.distance() > 0) {
             visualization_msgs::Marker marker;
             marker.header.frame_id = "odom";
             marker.header.stamp = ros::Time();
@@ -397,8 +397,8 @@ void RobustPeopleFollower::publishPersonMarkers() const
             marker.type = visualization_msgs::Marker::MESH_RESOURCE;
             marker.action = visualization_msgs::Marker::ADD;
             marker.lifetime = ros::Duration(0.3);
-            marker.pose.position.x = p.getPose().position.x;
-            marker.pose.position.y = p.getPose().position.y;
+            marker.pose.position.x = p.pose().position.x;
+            marker.pose.position.y = p.pose().position.y;
             marker.pose.position.z = 0.0;
             marker.pose.orientation.x = 0.0;
             marker.pose.orientation.y = 0.0;
@@ -417,7 +417,7 @@ void RobustPeopleFollower::publishPersonMarkers() const
             marker.mesh_resource = "package://robust_people_follower/meshes/standing.dae";
 
             // show a green marker for a tracked person
-            if (p.isTarget()) {
+            if (p.target()) {
                 marker.color.r = 0.0;
                 marker.color.g = 1.0;
             }
@@ -439,7 +439,7 @@ void RobustPeopleFollower::publishPersonVectors() const
 
     int i = 0;
     for (auto& p : m_tracked_persons) {
-        if (p.getDistance() > 0) {
+        if (p.distance() > 0) {
             visualization_msgs::Marker vector;
             vector.header.frame_id = "odom";
             vector.header.stamp = ros::Time();
@@ -448,17 +448,17 @@ void RobustPeopleFollower::publishPersonVectors() const
             vector.type = visualization_msgs::Marker::ARROW;
             vector.action = visualization_msgs::Marker::ADD;
             vector.lifetime = ros::Duration(0.3);
-            vector.pose.position.x = p.getPose().position.x;
-            vector.pose.position.y = p.getPose().position.y;
+            vector.pose.position.x = p.pose().position.x;
+            vector.pose.position.y = p.pose().position.y;
             vector.pose.position.z = 1.3;
 
-            tf::Quaternion q = tf::createQuaternionFromYaw(p.getAngle());
+            tf::Quaternion q = tf::createQuaternionFromYaw(p.angle());
             vector.pose.orientation.x = q.getX();
             vector.pose.orientation.y = q.getY();
             vector.pose.orientation.z = q.getZ();
             vector.pose.orientation.w = q.getW();
 
-            vector.scale.x = 0.5 + VECTOR_LENGTH_FACTOR * p.getVelocity();
+            vector.scale.x = 0.5 + VECTOR_LENGTH_FACTOR * p.velocity();
             vector.scale.y = 0.1;
             vector.scale.z = 0.1;
 
@@ -525,7 +525,7 @@ void RobustPeopleFollower::managePersonList()
     if (!m_tracked_persons.empty()) {
         auto it = m_tracked_persons.begin();
         while (it != m_tracked_persons.end()) {
-            if (it->getDistance() == 0 && it->getYDeviation() == 0)
+            if (it->distance() == 0 && it->yDeviation() == 0)
                 it = m_tracked_persons.erase(it);
             else
                 ++it;
@@ -538,11 +538,11 @@ void RobustPeopleFollower::addNewGoal()
 {
 
     // only if target is above threshold distance
-    if (m_target.getDistance() > 1800) {
+    if (m_target.distance() > 1800) {
         geometry_msgs::PointStamped position;
         position.header.stamp = ros::Time::now();
-        position.point.x = m_target.getPose().position.x;
-        position.point.y = m_target.getPose().position.y;
+        position.point.x = m_target.pose().position.x;
+        position.point.y = m_target.pose().position.y;
         position.point.z = 0.0;
 
         // TODO: test
@@ -554,13 +554,13 @@ void RobustPeopleFollower::addNewGoal()
 
 void RobustPeopleFollower::updateTargetPath()
 {
-    if (m_target.getDistance() > 0) {
+    if (m_target.distance() > 0) {
         geometry_msgs::PoseStamped pose_stamped;
         pose_stamped.header.seq = m_seq_target;
         pose_stamped.header.stamp = ros::Time::now();
         pose_stamped.header.frame_id = "odom";
-        pose_stamped.pose.position.x = m_target.getPose().position.x;
-        pose_stamped.pose.position.y = m_target.getPose().position.y;
+        pose_stamped.pose.position.x = m_target.pose().position.x;
+        pose_stamped.pose.position.y = m_target.pose().position.y;
         m_target_path.poses.push_back(pose_stamped);
     }
 }
