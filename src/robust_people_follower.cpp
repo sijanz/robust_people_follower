@@ -164,9 +164,11 @@ void RobustPeopleFollower::runLoop()
         // TODO: test
         // move the robot
         if (m_target.getDistance() != 0) {
-            geometry_msgs::Twist speed;
-            speed = m_robot.setVelocityCommand(m_target, m_goal_list, speed);
+            geometry_msgs::Twist speed = m_robot.setVelocityCommand(m_target, m_goal_list);
+
+            // DEBUG
             ROS_INFO("velocity message: linear: %f, angular: %f", speed.linear.x, speed.angular.z);
+
             m_velocity_command_pub.publish(speed);
         }
 
@@ -186,9 +188,6 @@ void RobustPeopleFollower::runLoop()
 
         // list management
         managePersonList();
-
-        // TODO: test
-        // manageGoalList();
 
         loop_rate.sleep();
     }

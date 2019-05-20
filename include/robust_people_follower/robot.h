@@ -65,9 +65,8 @@ public:
     void printInfo() const override;
     Robot::Status getStatus() const;
     void setStatus(Robot::Status t_status);
-    geometry_msgs::Twist& setVelocityCommand(const Person& t_target,
-                                             std::deque<geometry_msgs::PointStamped>& t_goal_list,
-                                             geometry_msgs::Twist& t_msg);
+    geometry_msgs::Twist setVelocityCommand(const Person& t_target,
+                                            std::deque<geometry_msgs::PointStamped>& t_goal_list);
     void calculateAngle() override;
 
 private:
