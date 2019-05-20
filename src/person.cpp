@@ -36,26 +36,13 @@
 #include "robust_people_follower/person.h"
 
 
-Person::Person()
-{
-    m_is_target = false;
-    m_velocity = 0.0;
-    m_angle = 0.0;
-    m_gesture_begin = ros::Time(0);
-    m_pose = m_old_pose = geometry_msgs::Pose{};
-    m_skeleton = {};
-}
+Person::Person() : m_is_target(false), m_gesture_begin(ros::Time(0)), m_skeleton(body_tracker_msgs::Skeleton{})
+{}
 
 
-Person::Person(const body_tracker_msgs::Skeleton& t_skeleton)
-{
-    m_is_target = false;
-    m_velocity = 0.0;
-    m_angle = 0.0;
-    m_gesture_begin = ros::Time(0);
-    m_pose = m_old_pose = geometry_msgs::Pose{};
-    m_skeleton = t_skeleton;
-}
+Person::Person(const body_tracker_msgs::Skeleton& t_skeleton) : m_is_target(false), m_gesture_begin(ros::Time(0)),
+                                                                m_skeleton(t_skeleton)
+{}
 
 
 Person& Person::operator=(const Person& rhs)

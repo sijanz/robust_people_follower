@@ -38,16 +38,8 @@
 #include "robust_people_follower/robot.h"
 
 
-// TODO: use initializer list
-Robot::Robot()
-{
-    m_status = WAITING;
-    m_velocity = 0.0;
-    m_pose.position.x = m_pose.position.y = m_pose.position.z = 0.0;
-    m_pose.orientation.x = m_pose.orientation.y = m_pose.orientation.z = m_pose.orientation.w = 0.0;
-    m_angle = 0.0;
-    m_current_linear = m_current_angular = 0.0;
-}
+Robot::Robot() : m_status(WAITING), m_current_linear(0.0), m_current_angular(0.0)
+{}
 
 
 void Robot::printInfo() const

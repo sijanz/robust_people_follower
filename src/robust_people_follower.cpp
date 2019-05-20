@@ -38,7 +38,13 @@
 #include "robust_people_follower/robust_people_follower.h"
 
 
-RobustPeopleFollower::RobustPeopleFollower(const std::string& t_name)
+RobustPeopleFollower::RobustPeopleFollower(const std::string& t_name) : m_robot(Robot{}),
+                                                                        m_tracked_persons(std::vector<Person>{}),
+                                                                        m_robot_path(nav_msgs::Path{}),
+                                                                        m_target_path(nav_msgs::Path{}), m_seq_robot(0),
+                                                                        m_seq_target(0),
+                                                                        m_goal_list(
+                                                                                std::deque<geometry_msgs::PointStamped>{})
 {
     m_name = t_name;
 
@@ -49,12 +55,6 @@ RobustPeopleFollower::RobustPeopleFollower(const std::string& t_name)
     m_robot_path_pub = m_nh.advertise<nav_msgs::Path>("robust_people_follower/robot_path", 1000);
     m_target_path_pub = m_nh.advertise<nav_msgs::Path>("robust_people_follower/target_path", 1000);
     m_visualization_pub = m_nh.advertise<visualization_msgs::Marker>("robust_people_follower/markers", 10);
-
-    m_robot = {};
-    m_tracked_persons = {};
-    m_robot_path = m_target_path = {};
-    m_seq_robot = m_seq_target = {};
-    m_goal_list = {};
 }
 
 
