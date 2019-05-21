@@ -54,7 +54,7 @@ class Person : public Object2DSpace
 public:
     Person();
     explicit Person(const body_tracker_msgs::Skeleton& t_skeleton);
-    Person& operator=(const Person& rhs);
+    Person& operator=(const Person& rhs) = default;
     void printInfo() const override;
     void printVerboseInfo() const;
 

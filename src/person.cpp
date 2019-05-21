@@ -43,18 +43,6 @@ Person::Person(const body_tracker_msgs::Skeleton& t_skeleton) : m_is_target(fals
                                                                 m_skeleton(t_skeleton) {}
 
 
-Person& Person::operator=(const Person& rhs)
-{
-    m_is_target = rhs.m_is_target;
-    m_velocity = rhs.m_velocity;
-    m_angle_radian = rhs.m_angle_radian;
-    m_gesture_begin = rhs.m_gesture_begin;
-    m_pose = rhs.m_pose;
-    m_old_pose = rhs.m_old_pose;
-    m_skeleton = rhs.m_skeleton;
-}
-
-
 void Person::printInfo() const
 {
     ROS_INFO("id: %d, is target: %d, distance: %f, gestures: %d, height: %d",

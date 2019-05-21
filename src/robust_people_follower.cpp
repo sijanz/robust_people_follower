@@ -181,10 +181,7 @@ void RobustPeopleFollower::runLoop()
 
         // set old position to calculate velocity
         m_robot.updateOldPose();
-        m_target.updateOldPose();
-        for (auto& p : m_tracked_persons) {
-            p.updateOldPose();
-        }
+        std::for_each(m_tracked_persons.begin(), m_tracked_persons.end(), [](Person& p) { p.updateOldPose(); });
 
         // list management
         managePersonList();
@@ -211,11 +208,7 @@ void RobustPeopleFollower::debugPrintout()
     ROS_INFO("goal list size: %lu", m_goal_list.size());
 
     ROS_INFO("tracked persons: %lu", m_tracked_persons.size());
-    if (!m_tracked_persons.empty()) {
-        for (auto& p : m_tracked_persons) {
-            p.printInfo();
-        }
-    }
+    std::for_each(m_tracked_persons.begin(), m_tracked_persons.end(), [](const Person& p) { p.printInfo(); });
 }
 
 
@@ -427,9 +420,8 @@ void RobustPeopleFollower::publishPersonMarkers() const
         }
     }
 
-    for (auto& m : person_markers) {
-        m_visualization_pub.publish(m);
-    }
+    std::for_each(person_markers.begin(), person_markers.end(),
+                  [&](const visualization_msgs::Marker& m) { m_visualization_pub.publish(m); });
 }
 
 
@@ -472,9 +464,8 @@ void RobustPeopleFollower::publishPersonVectors() const
         }
     }
 
-    for (auto& v : person_vectors) {
-        m_visualization_pub.publish(v);
-    }
+    std::for_each(person_vectors.begin(), person_vectors.end(),
+                  [&](const visualization_msgs::Marker& m) { m_visualization_pub.publish(m); });
 }
 
 
