@@ -66,8 +66,6 @@ RobustPeopleFollower::~RobustPeopleFollower()
 
 void RobustPeopleFollower::runLoop()
 {
-    bool in_first_half, in_second_half = false;
-
     ros::Rate loop_rate(LOOP_FREQUENCY);
 
     while (ros::ok()) {

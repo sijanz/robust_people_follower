@@ -37,8 +37,6 @@
 #define ROBUST_PEOPLE_FOLLOWER_ROBUST_PEOPLE_FOLLOWER_H
 
 
-#include <stdlib.h>
-#include <cmath>
 #include <deque>
 
 #include <ros/ros.h>
@@ -46,7 +44,6 @@
 #include <geometry_msgs/Twist.h>
 #include <nav_msgs/Odometry.h>
 #include <nav_msgs/Path.h>
-#include <std_msgs/Float32.h>
 #include <visualization_msgs/Marker.h>
 
 #include "robot.h"

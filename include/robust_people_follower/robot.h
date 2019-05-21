@@ -39,9 +39,9 @@
 
 #include <deque>
 
+#include <geometry_msgs/Twist.h>
 #include <geometry_msgs/PointStamped.h>
 #include <geometry_msgs/Pose.h>
-#include <geometry_msgs/Twist.h>
 
 #include "robust_people_follower/object_2d_space.h"
 #include "robust_people_follower/person.h"
