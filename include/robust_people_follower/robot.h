@@ -65,19 +65,21 @@ public:
     void printInfo() const override;
 
     // TODO: rename
-    geometry_msgs::Twist setVelocityCommand(const Person& t_target,
-                                            std::deque<geometry_msgs::PointStamped>& t_goal_list);
+    geometry_msgs::Twist setVelocityCommand(const Person& t_target, int t_distance_threshold);
 
     void calculateAngle() override;
+    void addNewGoal(const Person& t_target);
 
     // setters
     inline Robot::Status& status() { return m_status; }
 
     // getters
     inline const Robot::Status status() const { return m_status; }
+    inline const std::deque<geometry_msgs::PointStamped>& goalList() const { return m_goal_list; };
 
 private:
     Robot::Status m_status;
+    std::deque<geometry_msgs::PointStamped> m_goal_list;
     double m_current_linear;
     double m_current_angular;
 };

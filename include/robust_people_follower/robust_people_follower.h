@@ -106,9 +106,6 @@ private:
     // sequence number for target path
     uint32_t m_seq_target;
 
-    // list that holds goals, at maximum 10
-    std::deque<geometry_msgs::PointStamped> m_goal_list;
-
     // helper methods to keep the main loop tidy
     void debugPrintout();
     void publishRobotPath();
@@ -117,7 +114,6 @@ private:
     void publishPersonVectors() const;
     void publishRobotGoals() const;
     void managePersonList();
-    void addNewGoal();
     void updateTargetPath();
 };
 

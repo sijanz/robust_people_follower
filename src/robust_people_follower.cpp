@@ -42,9 +42,7 @@ RobustPeopleFollower::RobustPeopleFollower(const std::string& t_name) : m_robot(
                                                                         m_tracked_persons(std::vector<Person>{}),
                                                                         m_robot_path(nav_msgs::Path{}),
                                                                         m_target_path(nav_msgs::Path{}), m_seq_robot(0),
-                                                                        m_seq_target(0),
-                                                                        m_goal_list(
-                                                                                std::deque<geometry_msgs::PointStamped>{})
+                                                                        m_seq_target(0)
 {
     m_name = t_name;
 
@@ -68,6 +66,8 @@ RobustPeopleFollower::~RobustPeopleFollower()
 
 void RobustPeopleFollower::runLoop()
 {
+    bool in_first_half, in_second_half = false;
+
     ros::Rate loop_rate(LOOP_FREQUENCY);
 
     while (ros::ok()) {
@@ -84,7 +84,7 @@ void RobustPeopleFollower::runLoop()
         }
 
         // add new goal to goal list
-        addNewGoal();
+        m_robot.addNewGoal(m_target);
 
         // TODO: implement actual searching
         // robot loses target
@@ -102,7 +102,7 @@ void RobustPeopleFollower::runLoop()
                     marker.ns = "estimation";
                     marker.type = visualization_msgs::Marker::MESH_RESOURCE;
                     marker.action = visualization_msgs::Marker::ADD;
-                    marker.lifetime = ros::Duration(10);
+                    marker.lifetime = ros::Duration(20);
                     marker.pose.position.x = m_target.oldPose().position.x;
                     marker.pose.position.y = m_target.oldPose().position.y;
                     marker.pose.position.z = 0.0;
@@ -124,24 +124,23 @@ void RobustPeopleFollower::runLoop()
                     m_visualization_pub.publish(marker);
 
                     // FIXME: use the old vector
-                    /*
                     visualization_msgs::Marker vector;
                     vector.header.frame_id = "odom";
                     vector.header.stamp = ros::Time();
                     vector.ns = "vectors";
                     vector.type = visualization_msgs::Marker::ARROW;
                     vector.action = visualization_msgs::Marker::ADD;
-                    vector.pose.position.x = p.getAbsolutePosition().x;
-                    vector.pose.position.y = p.getAbsolutePosition().y;
+                    vector.pose.position.x = p.oldPose().position.x;
+                    vector.pose.position.y = p.oldPose().position.y;
                     vector.pose.position.z = 1.3;
 
-                    tf::Quaternion q = tf::createQuaternionFromYaw(p.getAngle());
+                    tf::Quaternion q = tf::createQuaternionFromYaw(p.angle());
                     vector.pose.orientation.x = q.getX();
                     vector.pose.orientation.y = q.getY();
                     vector.pose.orientation.z = q.getZ();
                     vector.pose.orientation.w = q.getW();
 
-                    vector.scale.x = 0.5 + VECTOR_LENGTH_FACTOR * p.getVelocity();
+                    vector.scale.x = 0.5 + VECTOR_LENGTH_FACTOR * p.velocity();
                     vector.scale.y = 0.1;
                     vector.scale.z = 0.1;
 
@@ -151,7 +150,7 @@ void RobustPeopleFollower::runLoop()
                     vector.color.b = 0.0;
 
                     m_visualization_pub.publish(vector);
-                     */
+
                 }
             }
         }
@@ -163,8 +162,8 @@ void RobustPeopleFollower::runLoop()
 
         // TODO: test
         // move the robot
-        if (m_target.distance() != 0) {
-            geometry_msgs::Twist speed = m_robot.setVelocityCommand(m_target, m_goal_list);
+        if (m_robot.status() != Robot::Status::WAITING) {
+            geometry_msgs::Twist speed = m_robot.setVelocityCommand(m_target, 1800);
 
             // DEBUG
             ROS_INFO("velocity message: linear: %f, angular: %f", speed.linear.x, speed.angular.z);
@@ -205,10 +204,11 @@ void RobustPeopleFollower::debugPrintout()
     ROS_INFO("target information:");
     m_target.printVerboseInfo();
 
-    ROS_INFO("goal list size: %lu", m_goal_list.size());
+    ROS_INFO("goal list size: %lu", m_robot.goalList().size());
 
     ROS_INFO("tracked persons: %lu", m_tracked_persons.size());
-    std::for_each(m_tracked_persons.begin(), m_tracked_persons.end(), [](const Person& p) { p.printInfo(); });
+    if (!m_tracked_persons.empty())
+        std::for_each(m_tracked_persons.begin(), m_tracked_persons.end(), [](const Person& p) { p.printInfo(); });
 }
 
 
@@ -289,6 +289,9 @@ void RobustPeopleFollower::skeletonCallback(const body_tracker_msgs::Skeleton::C
 
             // target
             if (p.target()) {
+
+                if (skeleton.centerOfMass.x == 0.0)
+                    break;
 
                 // check for gestures
                 if (skeleton.gesture == 2 && p.hasCorrectHandHeight()) {
@@ -494,15 +497,17 @@ void RobustPeopleFollower::publishRobotGoals() const
     line_list.color.r = 1.0;
     line_list.color.a = 1.0;
 
-    for (auto& g : m_goal_list) {
-        geometry_msgs::Point p;
-        p.x = g.point.x;
-        p.y = g.point.y;
+    if (!m_robot.goalList().empty()) {
+        for (auto& g : m_robot.goalList()) {
+            geometry_msgs::Point p;
+            p.x = g.point.x;
+            p.y = g.point.y;
 
-        line_strip.points.push_back(p);
-        line_list.points.push_back(p);
-        p.z += 1.0;
-        line_list.points.push_back(p);
+            line_strip.points.push_back(p);
+            line_list.points.push_back(p);
+            p.z += 1.0;
+            line_list.points.push_back(p);
+        }
     }
 
     // publish markers
@@ -521,24 +526,6 @@ void RobustPeopleFollower::managePersonList()
             else
                 ++it;
         }
-    }
-}
-
-
-void RobustPeopleFollower::addNewGoal()
-{
-
-    // only if target is above threshold distance
-    if (m_target.distance() > 1800) {
-        geometry_msgs::PointStamped position;
-        position.header.stamp = ros::Time::now();
-        position.point.x = m_target.pose().position.x;
-        position.point.y = m_target.pose().position.y;
-        position.point.z = 0.0;
-
-        // TODO: test
-        if (m_goal_list.empty() || ros::Time::now().sec != m_goal_list.at(m_goal_list.size() - 1).header.stamp.sec)
-            m_goal_list.emplace_back(position);
     }
 }
 

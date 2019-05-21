@@ -38,7 +38,8 @@
 #include "robust_people_follower/robot.h"
 
 
-Robot::Robot() : m_status(WAITING), m_current_linear(0.0), m_current_angular(0.0) {}
+Robot::Robot() : m_status(WAITING), m_goal_list(std::deque<geometry_msgs::PointStamped>{}),
+                 m_current_linear(0.0), m_current_angular(0.0) {}
 
 
 void Robot::printInfo() const
@@ -66,101 +67,107 @@ void Robot::printInfo() const
 }
 
 
-// TODO: test, make threshold variable
-geometry_msgs::Twist Robot::setVelocityCommand(const Person& t_target,
-                                               std::deque<geometry_msgs::PointStamped>& t_goal_list)
+void Robot::addNewGoal(const Person& t_target)
 {
-    if (t_target.distance() < 1800)
-        t_goal_list.clear();
 
-    geometry_msgs::Twist speed;
+    // only if target is above threshold distance
+    if (t_target.distance() > 1800) {
+        geometry_msgs::PointStamped position;
+        position.header.stamp = ros::Time::now();
+        position.point.x = t_target.pose().position.x;
+        position.point.y = t_target.pose().position.y;
+        position.point.z = 0.0;
 
-    speed.linear.x = 0.0;
-    speed.angular.z = 0.0;
-
-    if (m_status == Status::FOLLOWING || m_status == Status::SEARCHING) {
-        if (!t_goal_list.empty()) {
-
-            // move backwards if target is too near
-            if (t_target.distance() < 1000 && t_target.distance() > 0)
-                speed.linear.x = 2 * (t_target.distance() / 1000) - 2;
-            else if (t_target.distance() > 1000 && t_target.distance() < 1800) {
-                if (t_target.yDeviation() < -50) {
-                    speed.angular.z = -0.0025 * std::abs(t_target.yDeviation());
-                    ROS_INFO("[TURNING LEFT at %f]", speed.angular.z);
-                } else if (t_target.yDeviation() > 50) {
-                    speed.angular.z = 0.0025 * t_target.yDeviation();
-                    ROS_INFO("[TURNING RIGHT at %f]", speed.angular.z);
-                }
-            } else if (t_target.distance() == 0 || t_target.distance() > 1800) {
-                geometry_msgs::PointStamped& current_goal = t_goal_list.at(0);
+        // TODO: test
+        if (m_goal_list.empty() || ros::Time::now().sec != m_goal_list.at(m_goal_list.size() - 1).header.stamp.sec)
+            m_goal_list.emplace_back(position);
+    }
+}
 
 
-                double inc_x = current_goal.point.x - m_pose.position.x;
-                double inc_y = current_goal.point.y - m_pose.position.y;
+geometry_msgs::Twist Robot::setVelocityCommand(const Person& t_target, int t_distance_threshold)
+{
+    double distance_to_target = t_target.distance();
 
-                double angle_to_goal = atan2(inc_y, inc_x);
-                double distance_to_goal = sqrt(pow(current_goal.point.x - m_pose.position.x, 2)
-                                               + pow(current_goal.point.y - m_pose.position.y, 2));
+    // FIXME: ugly, only temporary fix
+    if (distance_to_target == 0)
+        distance_to_target = t_distance_threshold + 200;
 
-                // roboter has reached the goal
-                if (distance_to_goal < 0.3) {
+    if (distance_to_target < t_distance_threshold)
+        m_goal_list.clear();
 
-                    // input 20% less acceleration
-                    speed.linear.x = m_current_linear - (m_current_linear / 100) * 20;
-                    speed.angular.z = m_current_angular - (m_current_angular / 100) * 20;
+    geometry_msgs::Twist speed = {};
 
-                    t_goal_list.pop_front();
+    // if target is too near, move backwards
+    if (distance_to_target < 1000) {
 
-                    if (!t_goal_list.empty())
-                        current_goal = t_goal_list.at(0);
+        // linear velocity
+        speed.linear.x = 2 * (distance_to_target / 1000) - 2;
 
-                    // FIXME: threshold must be smaller to negate pendulum effect
-                } else if (angle_to_goal - m_angle_radian > 0.2)
-                    //speed.angular.z = 1.0;
-                    speed.angular.z = 0.5 * (angle_to_goal - m_angle_radian);
-                else if (angle_to_goal - m_angle_radian < -0.2)
-                    //speed.angular.z = 1.0;
-                    speed.angular.z = -0.5 * std::abs(angle_to_goal - m_angle_radian);
-                //speed.linear.x = 0.32 * (t_target.getDistance() / 1000) - 0.576;
-                speed.linear.x = 0.3;
+        // angular velocity
+        if (t_target.yDeviation() < -50) {
+            speed.angular.z = -0.0025 * std::abs(t_target.yDeviation());
+        } else if (t_target.yDeviation() > 50) {
+            speed.angular.z = 0.0025 * t_target.yDeviation();
+        } else
+            speed.angular.z = 0;
 
-            }
-        }
+        // target is under threshold
+    } else if (distance_to_target > 1000 && distance_to_target < t_distance_threshold) {
 
-            // no goals
-        else {
+        // angular velocity
+        if (t_target.yDeviation() < -50) {
+            speed.angular.z = -0.0025 * std::abs(t_target.yDeviation());
+        } else if (t_target.yDeviation() > 50) {
+            speed.angular.z = 0.0025 * t_target.yDeviation();
+        } else
+            speed.angular.z = 0;
 
-            // angular velocity
-            if (t_target.yDeviation() < -50) {
-                speed.angular.z = -0.0025 * std::abs(t_target.yDeviation());
-            } else if (t_target.yDeviation() > 50) {
-                speed.angular.z = 0.0025 * t_target.yDeviation();
-            } else
-                speed.angular.z = 0;
+        // target is above threshold
+    } else if (!m_goal_list.empty()) {
 
-            // linear velocity
-            if (t_target.distance() < 1000 && t_target.distance() > 0.0) {
-                speed.linear.x = 2 * (t_target.distance() / 1000) - 2;
-            }
-        }
+        geometry_msgs::PointStamped& current_goal = m_goal_list.at(0);
+
+        double inc_x = current_goal.point.x - m_pose.position.x;
+        double inc_y = current_goal.point.y - m_pose.position.y;
+
+        double angle_to_goal = atan2(inc_y, inc_x);
+        double distance_to_goal = sqrt(pow(current_goal.point.x - m_pose.position.x, 2)
+                                       + pow(current_goal.point.y - m_pose.position.y, 2));
+
+        double speed_linear = 0.3;
+
+        if (m_status == Status::FOLLOWING)
+            speed_linear = 0.32 * (distance_to_target / 1000) - 0.576;
+
+        // roboter has reached the goal
+        if (distance_to_goal < 0.3) {
+
+            // input 40% less acceleration
+            speed.linear.x = m_current_linear - (m_current_linear / 100) * 40;
+            speed.angular.z = m_current_angular - (m_current_angular / 100) * 40;
+
+            ROS_INFO("popping front...");
+            m_goal_list.pop_front();
+            ROS_INFO("popped front");
+
+            // FIXME: throws seg fault
+            ROS_INFO("setting new goal...");
+            if (!m_goal_list.empty())
+                current_goal = m_goal_list.at(0);
+            ROS_INFO("set new goal");
+
+        } else if (angle_to_goal - m_angle_radian > 0.1)
+            speed.angular.z = 0.5 * (angle_to_goal - m_angle_radian);
+        else if (angle_to_goal - m_angle_radian < -0.1)
+            speed.angular.z = -0.5 * std::abs(angle_to_goal - m_angle_radian);
+
+        // set linear speed
+        speed.linear.x = speed_linear;
     }
 
     m_current_linear = speed.linear.x;
     m_current_angular = speed.angular.z;
-
-    /*
-    // FIXME: robot is stationary only
-    speed.linear.x = 0.0;
-
-    // angular velocity
-    if (t_target.getYDeviation() < -50) {
-        speed.angular.z = -0.0025 * std::abs(t_target.getYDeviation());
-    } else if (t_target.getYDeviation() > 50) {
-        speed.angular.z = 0.0025 * t_target.getYDeviation();
-    } else
-        speed.angular.z = 0;
-        */
 
     return speed;
 }
