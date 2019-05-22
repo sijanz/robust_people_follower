@@ -520,6 +520,7 @@ visualization_msgs::Marker RobustPeopleFollower::estimationVector() const
     vector.ns = "vectors";
     vector.type = visualization_msgs::Marker::ARROW;
     vector.action = visualization_msgs::Marker::ADD;
+    vector.lifetime = ros::Duration(20);
     vector.pose.position.x = m_target.pose().position.x;
     vector.pose.position.y = m_target.pose().position.y;
     vector.pose.position.z = 1.3;

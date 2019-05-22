@@ -134,9 +134,10 @@ geometry_msgs::Twist Robot::velocityCommand(const Person& t_target, const double
 
         double speed_linear = 0.3;
 
-        // TODO: make variable, use threshold
-        if (m_status == Status::FOLLOWING)
-            speed_linear = 0.32 * (distance_to_target / 1000) - 0.576;
+        if (m_status == Status::FOLLOWING) {
+            double n = -(0.32 * ((FOLLOW_THRESHOLD / 1000) - 0.2));
+            speed_linear = 0.32 * (distance_to_target / 1000) + n;
+        }
 
         // roboter has reached the goal
         if (distance_to_goal < 0.3) {
