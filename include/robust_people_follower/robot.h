@@ -58,13 +58,13 @@ public:
     {
         WAITING = 0,
         FOLLOWING = 1,
-        SEARCHING = 2
+        LOS_LOST = 2,
+        SEARCHING = 3
     };
 
     Robot();
     void printInfo() const override;
 
-    // TODO: rename
     geometry_msgs::Twist velocityCommand(const Person& t_target, double FOLLOW_THRESHOLD);
 
     void calculateAngle() override;

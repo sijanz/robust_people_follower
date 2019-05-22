@@ -94,7 +94,7 @@ void RobustPeopleFollower::runLoop()
         // robot loses target
         if (m_target.distance() == 0 && m_target.distance() == 0 &&
             m_robot.status() == Robot::Status::FOLLOWING) {
-            m_robot.status() = Robot::Status::SEARCHING;
+            m_robot.status() = Robot::Status::LOS_LOST;
 
             // publish estimation markers
             m_visualization_pub.publish(estimation_marker);

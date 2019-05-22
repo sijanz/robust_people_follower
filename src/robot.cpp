@@ -96,6 +96,9 @@ geometry_msgs::Twist Robot::velocityCommand(const Person& t_target, const double
     if (distance_to_target < FOLLOW_THRESHOLD)
         m_goal_list.clear();
 
+    if (m_status == Status::LOS_LOST && m_goal_list.empty())
+        m_status = Status::SEARCHING;
+
     geometry_msgs::Twist speed = {};
 
     // if target is too near, move backwards
@@ -137,12 +140,16 @@ geometry_msgs::Twist Robot::velocityCommand(const Person& t_target, const double
         if (m_status == Status::FOLLOWING) {
             double n = -(0.32 * ((FOLLOW_THRESHOLD / 1000) - 0.2));
             speed_linear = 0.32 * (distance_to_target / 1000) + n;
+
+            // maximum of 0.6 m/s linear velocity
+            if (speed_linear > 0.6)
+                speed_linear = 0.6;
         }
 
         // roboter has reached the goal
         if (distance_to_goal < 0.3) {
 
-            // input 40% less acceleration
+            // input less acceleration
             speed.linear.x = m_current_linear - (m_current_linear / 100) * 40;
             speed.angular.z = m_current_angular - (m_current_angular / 100) * 40;
 
