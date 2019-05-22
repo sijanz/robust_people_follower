@@ -39,10 +39,11 @@
 
 
 RobustPeopleFollower::RobustPeopleFollower(const std::string& t_name) : m_robot(Robot{}),
+                                                                        m_target(Person{}),
                                                                         m_tracked_persons(std::vector<Person>{}),
                                                                         m_robot_path(nav_msgs::Path{}),
-                                                                        m_target_path(nav_msgs::Path{}), m_seq_robot(0),
-                                                                        m_seq_target(0)
+                                                                        m_target_path(nav_msgs::Path{}),
+                                                                        m_seq_robot(0), m_seq_target(0)
 {
     m_name = t_name;
 
@@ -70,6 +71,10 @@ void RobustPeopleFollower::runLoop()
 
     while (ros::ok()) {
 
+        // create markers to be published if the target is lost
+        visualization_msgs::Marker estimation_marker = estimationMarker();
+        visualization_msgs::Marker estimation_vector = estimationVector();
+
         // process callbacks
         ros::spinOnce();
 
@@ -82,7 +87,8 @@ void RobustPeopleFollower::runLoop()
         }
 
         // add new goal to goal list
-        m_robot.addNewGoal(m_target);
+        if (m_target.distance() > FOLLOW_THRESHOLD)
+            m_robot.addNewGoal(m_target, 4);
 
         // TODO: implement actual searching
         // robot loses target
@@ -90,84 +96,17 @@ void RobustPeopleFollower::runLoop()
             m_robot.status() == Robot::Status::FOLLOWING) {
             m_robot.status() = Robot::Status::SEARCHING;
 
-            for (auto& p : m_tracked_persons) {
-                if (p.target()) {
-
-                    // publish estimation marker
-                    visualization_msgs::Marker marker;
-                    marker.header.frame_id = "odom";
-                    marker.header.stamp = ros::Time();
-                    marker.ns = "estimation";
-                    marker.type = visualization_msgs::Marker::MESH_RESOURCE;
-                    marker.action = visualization_msgs::Marker::ADD;
-                    marker.lifetime = ros::Duration(20);
-                    marker.pose.position.x = m_target.oldPose().position.x;
-                    marker.pose.position.y = m_target.oldPose().position.y;
-                    marker.pose.position.z = 0.0;
-                    marker.pose.orientation.x = 0.0;
-                    marker.pose.orientation.y = 0.0;
-                    marker.pose.orientation.z = 0.0;
-                    marker.pose.orientation.w = 1.0;
-                    marker.scale.x = 1.0;
-                    marker.scale.y = 1.0;
-                    marker.scale.z = 1.0;
-
-                    marker.color.a = 0.5;
-                    marker.color.r = 0.0;
-                    marker.color.g = 0.0;
-                    marker.color.b = 1.0;
-
-                    marker.mesh_resource = "package://robust_people_follower/meshes/standing.dae";
-
-                    m_visualization_pub.publish(marker);
-
-                    // FIXME: use the old vector
-                    visualization_msgs::Marker vector;
-                    vector.header.frame_id = "odom";
-                    vector.header.stamp = ros::Time();
-                    vector.ns = "vectors";
-                    vector.type = visualization_msgs::Marker::ARROW;
-                    vector.action = visualization_msgs::Marker::ADD;
-                    vector.pose.position.x = p.oldPose().position.x;
-                    vector.pose.position.y = p.oldPose().position.y;
-                    vector.pose.position.z = 1.3;
-
-                    tf::Quaternion q = tf::createQuaternionFromYaw(p.angle());
-                    vector.pose.orientation.x = q.getX();
-                    vector.pose.orientation.y = q.getY();
-                    vector.pose.orientation.z = q.getZ();
-                    vector.pose.orientation.w = q.getW();
-
-                    vector.scale.x = 0.5 + VECTOR_LENGTH_FACTOR * p.velocity();
-                    vector.scale.y = 0.1;
-                    vector.scale.z = 0.1;
-
-                    vector.color.a = 1.0;
-                    vector.color.r = 1.0;
-                    vector.color.g = 0.0;
-                    vector.color.b = 0.0;
-
-                    m_visualization_pub.publish(vector);
-
-                }
-            }
+            // publish estimation markers
+            m_visualization_pub.publish(estimation_marker);
+            m_visualization_pub.publish(estimation_vector);
         }
 
         // update path for target to be published
         updateTargetPath();
 
-        debugPrintout();
-
-        // TODO: test
         // move the robot
-        if (m_robot.status() != Robot::Status::WAITING) {
-            geometry_msgs::Twist speed = m_robot.setVelocityCommand(m_target, 1800);
-
-            // DEBUG
-            ROS_INFO("velocity message: linear: %f, angular: %f", speed.linear.x, speed.angular.z);
-
-            m_velocity_command_pub.publish(speed);
-        }
+        if (m_robot.status() != Robot::Status::WAITING)
+            m_velocity_command_pub.publish(m_robot.velocityCommand(m_target, FOLLOW_THRESHOLD));
 
         // publish markers to view in RViz
         publishRobotPath();
@@ -176,11 +115,14 @@ void RobustPeopleFollower::runLoop()
         publishPersonVectors();
         publishRobotGoals();
 
-        // set old position to calculate velocity
+        // set old positions to calculate velocities
         m_robot.updateOldPose();
         std::for_each(m_tracked_persons.begin(), m_tracked_persons.end(), [](Person& p) { p.updateOldPose(); });
 
-        // list management
+        // print out program information on the screen
+        debugPrintout();
+
+        // delete persons that are no longer in line of sight
         managePersonList();
 
         loop_rate.sleep();
@@ -280,8 +222,7 @@ void RobustPeopleFollower::skeletonCallback(const body_tracker_msgs::Skeleton::C
 
             // update information
             p.skeleton() = skeleton;
-            p.calculateAbsolutePosition(m_robot.pose().position.x, m_robot.pose().position.y,
-                                        m_robot.angle());
+            p.calculateAbsolutePosition(m_robot.pose().position.x, m_robot.pose().position.y, m_robot.angle());
             p.calculateAngle();
             p.calculateVelocity(LOOP_FREQUENCY);
 
@@ -539,4 +480,61 @@ void RobustPeopleFollower::updateTargetPath()
         pose_stamped.pose.position.y = m_target.pose().position.y;
         m_target_path.poses.push_back(pose_stamped);
     }
+}
+
+
+visualization_msgs::Marker RobustPeopleFollower::estimationMarker() const
+{
+    visualization_msgs::Marker marker;
+    marker.header.frame_id = "odom";
+    marker.header.stamp = ros::Time();
+    marker.ns = "estimation";
+    marker.type = visualization_msgs::Marker::MESH_RESOURCE;
+    marker.action = visualization_msgs::Marker::ADD;
+    marker.lifetime = ros::Duration(20);
+    marker.pose.position.x = m_target.pose().position.x;
+    marker.pose.position.y = m_target.pose().position.y;
+    marker.pose.position.z = 0.0;
+    marker.pose.orientation.x = 0.0;
+    marker.pose.orientation.y = 0.0;
+    marker.pose.orientation.z = 0.0;
+    marker.pose.orientation.w = 1.0;
+    marker.scale.x = 1.0;
+    marker.scale.y = 1.0;
+    marker.scale.z = 1.0;
+    marker.color.a = 0.5;
+    marker.color.r = 0.0;
+    marker.color.g = 0.0;
+    marker.color.b = 1.0;
+    marker.mesh_resource = "package://robust_people_follower/meshes/standing.dae";
+
+    return marker;
+}
+
+
+visualization_msgs::Marker RobustPeopleFollower::estimationVector() const
+{
+    visualization_msgs::Marker vector;
+    vector.header.frame_id = "odom";
+    vector.header.stamp = ros::Time();
+    vector.ns = "vectors";
+    vector.type = visualization_msgs::Marker::ARROW;
+    vector.action = visualization_msgs::Marker::ADD;
+    vector.pose.position.x = m_target.pose().position.x;
+    vector.pose.position.y = m_target.pose().position.y;
+    vector.pose.position.z = 1.3;
+    tf::Quaternion q = tf::createQuaternionFromYaw(m_target.angle());
+    vector.pose.orientation.x = q.getX();
+    vector.pose.orientation.y = q.getY();
+    vector.pose.orientation.z = q.getZ();
+    vector.pose.orientation.w = q.getW();
+    vector.scale.x = 0.5 + VECTOR_LENGTH_FACTOR * m_target.velocity();
+    vector.scale.y = 0.1;
+    vector.scale.z = 0.1;
+    vector.color.a = 1.0;
+    vector.color.r = 1.0;
+    vector.color.g = 0.0;
+    vector.color.b = 0.0;
+
+    return vector;
 }
