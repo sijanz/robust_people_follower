@@ -65,10 +65,10 @@ public:
     void printInfo() const override;
 
     // TODO: rename
-    geometry_msgs::Twist setVelocityCommand(const Person& t_target, int t_distance_threshold);
+    geometry_msgs::Twist velocityCommand(const Person& t_target, double FOLLOW_THRESHOLD);
 
     void calculateAngle() override;
-    void addNewGoal(const Person& t_target);
+    void addNewGoal(const Person& t_target, int t_times_per_second);
 
     // setters
     inline Robot::Status& status() { return m_status; }
@@ -80,6 +80,7 @@ public:
 private:
     Robot::Status m_status;
     std::deque<geometry_msgs::PointStamped> m_goal_list;
+    ros::Time m_last_waypoint_time;
     double m_current_linear;
     double m_current_angular;
 };

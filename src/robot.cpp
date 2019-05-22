@@ -67,33 +67,33 @@ void Robot::printInfo() const
 }
 
 
-void Robot::addNewGoal(const Person& t_target)
+void Robot::addNewGoal(const Person& t_target, int t_times_per_second)
 {
+    if (m_goal_list.size() > 100)
+        m_goal_list.pop_front();
 
-    // only if target is above threshold distance
-    if (t_target.distance() > 1800) {
+    if (ros::Time::now() - m_last_waypoint_time > ros::Duration(0, (1000000000 / t_times_per_second))) {
         geometry_msgs::PointStamped position;
         position.header.stamp = ros::Time::now();
         position.point.x = t_target.pose().position.x;
         position.point.y = t_target.pose().position.y;
         position.point.z = 0.0;
 
-        // TODO: test
-        if (m_goal_list.empty() || ros::Time::now().sec != m_goal_list.at(m_goal_list.size() - 1).header.stamp.sec)
-            m_goal_list.emplace_back(position);
+        m_last_waypoint_time = ros::Time::now();
+        m_goal_list.emplace_back(position);
     }
 }
 
 
-geometry_msgs::Twist Robot::setVelocityCommand(const Person& t_target, int t_distance_threshold)
+geometry_msgs::Twist Robot::velocityCommand(const Person& t_target, const double FOLLOW_THRESHOLD)
 {
     double distance_to_target = t_target.distance();
 
     // FIXME: ugly, only temporary fix
     if (distance_to_target == 0)
-        distance_to_target = t_distance_threshold + 200;
+        distance_to_target = FOLLOW_THRESHOLD + 200;
 
-    if (distance_to_target < t_distance_threshold)
+    if (distance_to_target < FOLLOW_THRESHOLD)
         m_goal_list.clear();
 
     geometry_msgs::Twist speed = {};
@@ -101,10 +101,8 @@ geometry_msgs::Twist Robot::setVelocityCommand(const Person& t_target, int t_dis
     // if target is too near, move backwards
     if (distance_to_target < 1000) {
 
-        // linear velocity
         speed.linear.x = 2 * (distance_to_target / 1000) - 2;
 
-        // angular velocity
         if (t_target.yDeviation() < -50) {
             speed.angular.z = -0.0025 * std::abs(t_target.yDeviation());
         } else if (t_target.yDeviation() > 50) {
@@ -112,10 +110,9 @@ geometry_msgs::Twist Robot::setVelocityCommand(const Person& t_target, int t_dis
         } else
             speed.angular.z = 0;
 
-        // target is under threshold
-    } else if (distance_to_target > 1000 && distance_to_target < t_distance_threshold) {
+        // target is under threshold, only keep him centered
+    } else if (distance_to_target > 1000 && distance_to_target < FOLLOW_THRESHOLD) {
 
-        // angular velocity
         if (t_target.yDeviation() < -50) {
             speed.angular.z = -0.0025 * std::abs(t_target.yDeviation());
         } else if (t_target.yDeviation() > 50) {
@@ -123,7 +120,7 @@ geometry_msgs::Twist Robot::setVelocityCommand(const Person& t_target, int t_dis
         } else
             speed.angular.z = 0;
 
-        // target is above threshold
+        // target is above threshold, follow him using waypoints
     } else if (!m_goal_list.empty()) {
 
         geometry_msgs::PointStamped& current_goal = m_goal_list.at(0);
@@ -137,6 +134,7 @@ geometry_msgs::Twist Robot::setVelocityCommand(const Person& t_target, int t_dis
 
         double speed_linear = 0.3;
 
+        // TODO: make variable, use threshold
         if (m_status == Status::FOLLOWING)
             speed_linear = 0.32 * (distance_to_target / 1000) - 0.576;
 
@@ -147,22 +145,14 @@ geometry_msgs::Twist Robot::setVelocityCommand(const Person& t_target, int t_dis
             speed.linear.x = m_current_linear - (m_current_linear / 100) * 40;
             speed.angular.z = m_current_angular - (m_current_angular / 100) * 40;
 
-            ROS_INFO("popping front...");
             m_goal_list.pop_front();
-            ROS_INFO("popped front");
 
-            // FIXME: throws seg fault
-            ROS_INFO("setting new goal...");
-            if (!m_goal_list.empty())
-                current_goal = m_goal_list.at(0);
-            ROS_INFO("set new goal");
-
+            // FIXME: buggy, robots tends to drive in circles
         } else if (angle_to_goal - m_angle_radian > 0.1)
             speed.angular.z = 0.5 * (angle_to_goal - m_angle_radian);
         else if (angle_to_goal - m_angle_radian < -0.1)
             speed.angular.z = -0.5 * std::abs(angle_to_goal - m_angle_radian);
 
-        // set linear speed
         speed.linear.x = speed_linear;
     }
 

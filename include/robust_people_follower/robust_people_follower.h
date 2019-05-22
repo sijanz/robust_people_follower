@@ -82,6 +82,8 @@ private:
     // factor for person vector length
     const double VECTOR_LENGTH_FACTOR = 1.0;
 
+    const double FOLLOW_THRESHOLD = 1800;
+
     // instance of the turtlebot robot
     Robot m_robot;
 
@@ -112,6 +114,8 @@ private:
     void publishRobotGoals() const;
     void managePersonList();
     void updateTargetPath();
+    visualization_msgs::Marker estimationMarker() const;
+    visualization_msgs::Marker estimationVector() const;
 };
 
 
