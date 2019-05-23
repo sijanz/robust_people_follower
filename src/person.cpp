@@ -36,17 +36,14 @@
 #include "robust_people_follower/person.h"
 
 
-Person::Person() : m_is_target(false), m_gesture_begin(ros::Time(0)), m_skeleton(body_tracker_msgs::Skeleton{}) {}
-
-
-Person::Person(const body_tracker_msgs::Skeleton& t_skeleton) : m_is_target(false), m_gesture_begin(ros::Time(0)),
-                                                                m_skeleton(t_skeleton) {}
+Person::Person(const body_tracker_msgs::Skeleton& t_skeleton) : m_is_target{}, m_gesture_begin{},
+                                                                m_skeleton{t_skeleton} {}
 
 
 void Person::printInfo() const
 {
     ROS_INFO("id: %d, is target: %d, distance: %f, gestures: %d, height: %d",
-             m_skeleton.body_id, m_is_target, m_skeleton.centerOfMass.x, m_skeleton.gesture, hasCorrectHandHeight());
+             m_skeleton.body_id, m_is_target, m_skeleton.centerOfMass.x, m_skeleton.gesture, correctHandHeight());
 }
 
 
@@ -66,7 +63,7 @@ void Person::printVerboseInfo() const
 }
 
 
-void Person::calculateAbsolutePosition(double t_robot_x, double t_robot_y, double t_robot_angle)
+void Person::calculateAbsolutePosition(const double t_robot_x, const double t_robot_y, const double t_robot_angle)
 {
     m_pose.position.x = t_robot_x + (cos(t_robot_angle) * (m_skeleton.centerOfMass.x / 1000) -
                                      sin(t_robot_angle) * (m_skeleton.centerOfMass.y / 1000));
@@ -75,7 +72,7 @@ void Person::calculateAbsolutePosition(double t_robot_x, double t_robot_y, doubl
 }
 
 
-bool Person::hasCorrectHandHeight() const
+bool Person::correctHandHeight() const
 {
     return m_skeleton.joint_position_left_hand.z > m_skeleton.joint_position_spine_top.z;
 }

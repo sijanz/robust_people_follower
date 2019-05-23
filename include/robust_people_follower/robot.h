@@ -62,27 +62,28 @@ public:
         SEARCHING = 3
     };
 
-    Robot();
+    // implicit default constructor
+
     void printInfo() const override;
 
     geometry_msgs::Twist velocityCommand(const Person& t_target, double FOLLOW_THRESHOLD);
 
     void calculateAngle() override;
-    void addNewGoal(const Person& t_target, int t_times_per_second);
+    void addNewWaypoint(const Person& t_target, int t_times_per_second);
 
     // setters
     inline Robot::Status& status() { return m_status; }
 
     // getters
     inline const Robot::Status status() const { return m_status; }
-    inline const std::deque<geometry_msgs::PointStamped>& goalList() const { return m_goal_list; };
+    inline const std::deque<geometry_msgs::PointStamped>& waypoints() const { return m_waypoint_list; };
 
 private:
-    Robot::Status m_status;
-    std::deque<geometry_msgs::PointStamped> m_goal_list;
-    ros::Time m_last_waypoint_time;
-    double m_current_linear;
-    double m_current_angular;
+    Robot::Status m_status{Status::WAITING};
+    std::deque<geometry_msgs::PointStamped> m_waypoint_list{};
+    ros::Time m_last_waypoint_time{};
+    double m_current_linear{};
+    double m_current_angular{};
 };
 
 

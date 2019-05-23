@@ -52,9 +52,10 @@
 class Person : public Object2DSpace
 {
 public:
-    Person();
+    Person() = default;
     explicit Person(const body_tracker_msgs::Skeleton& t_skeleton);
-    Person& operator=(const Person& rhs) = default;
+    inline Person& operator=(const Person& rhs) = default;
+    inline bool operator==(const int t_id) { return t_id == m_skeleton.body_id; }
     void printInfo() const override;
     void printVerboseInfo() const;
 
@@ -64,20 +65,18 @@ public:
     inline ros::Time& gestureBegin() { return m_gesture_begin; }
 
     // getters
-    inline const int id() const { return m_skeleton.body_id; }
     inline const bool target() const { return m_is_target; }
-    inline const ros::Time& gestureBegin() const { return m_gesture_begin; }
     inline const double distance() const { return m_skeleton.centerOfMass.x; }
     inline const double yDeviation() const { return m_skeleton.centerOfMass.y; }
 
-    bool hasCorrectHandHeight() const;
+    bool correctHandHeight() const;
     void calculateAbsolutePosition(double t_robot_x, double t_robot_y, double t_robot_angle);
     void calculateAngle() override;
 
 private:
-    bool m_is_target;
-    body_tracker_msgs::Skeleton m_skeleton;
-    ros::Time m_gesture_begin;
+    bool m_is_target{};
+    body_tracker_msgs::Skeleton m_skeleton{};
+    ros::Time m_gesture_begin{};
 };
 
 

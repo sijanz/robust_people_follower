@@ -140,7 +140,6 @@ include_directories(
 add_executable(${PROJECT_NAME}_node
         src/robust_people_follower_node.cpp
         src/robust_people_follower.cpp
-        src/object_2d_space.cpp
         src/robot.cpp
         src/person.cpp
         )

@@ -38,12 +38,9 @@
 #include "robust_people_follower/robust_people_follower.h"
 
 
-RobustPeopleFollower::RobustPeopleFollower(const std::string& t_name) : m_robot(Robot{}),
-                                                                        m_target(Person{}),
-                                                                        m_tracked_persons(std::vector<Person>{}),
-                                                                        m_robot_path(nav_msgs::Path{}),
-                                                                        m_target_path(nav_msgs::Path{}),
-                                                                        m_seq_robot(0), m_seq_target(0)
+RobustPeopleFollower::RobustPeopleFollower(const std::string& t_name) : m_robot{}, m_target{}, m_tracked_persons{},
+                                                                        m_robot_path{}, m_target_path{}, m_seq_robot{},
+                                                                        m_seq_target{}
 {
     m_name = t_name;
 
@@ -67,7 +64,7 @@ RobustPeopleFollower::~RobustPeopleFollower()
 
 void RobustPeopleFollower::runLoop()
 {
-    ros::Rate loop_rate(LOOP_FREQUENCY);
+    ros::Rate loop_rate{LOOP_FREQUENCY};
 
     while (ros::ok()) {
 
@@ -88,7 +85,7 @@ void RobustPeopleFollower::runLoop()
 
         // add new goal to goal list
         if (m_target.distance() > FOLLOW_THRESHOLD)
-            m_robot.addNewGoal(m_target, 4);
+            m_robot.addNewWaypoint(m_target, 4);
 
         // TODO: implement actual searching
         // robot loses target
@@ -137,18 +134,16 @@ void RobustPeopleFollower::debugPrintout()
 {
     system("clear");
 
-    ROS_INFO("ROS time: %d", ros::Time::now().sec);
-
+    ROS_INFO_STREAM("ROS time: " << ros::Time::now().sec);
     m_robot.printInfo();
 
-    ROS_INFO("target information:");
+    ROS_INFO_STREAM("target information:");
     m_target.printVerboseInfo();
 
-    ROS_INFO("goal list size: %lu", m_robot.goalList().size());
+    ROS_INFO_STREAM("goal list size: " << m_robot.waypoints().size());
 
-    ROS_INFO("tracked persons: %lu", m_tracked_persons.size());
-    if (!m_tracked_persons.empty())
-        std::for_each(m_tracked_persons.begin(), m_tracked_persons.end(), [](const Person& p) { p.printInfo(); });
+    ROS_INFO_STREAM("tracked persons: " << m_tracked_persons.size());
+    std::for_each(m_tracked_persons.begin(), m_tracked_persons.end(), [](const Person& p) { p.printInfo(); });
 }
 
 
@@ -158,7 +153,7 @@ void RobustPeopleFollower::debugPrintout()
  */
 void RobustPeopleFollower::odometryCallback(const nav_msgs::Odometry::ConstPtr& msg)
 {
-    geometry_msgs::Pose pose;
+    geometry_msgs::Pose pose{};
     pose.position.x = msg->pose.pose.position.x;
     pose.position.y = msg->pose.pose.position.y;
     pose.position.z = msg->pose.pose.position.z;
@@ -168,7 +163,7 @@ void RobustPeopleFollower::odometryCallback(const nav_msgs::Odometry::ConstPtr& 
     pose.orientation.w = msg->pose.pose.orientation.w;
     m_robot.pose() = pose;
 
-    geometry_msgs::PoseStamped pose_stamped;
+    geometry_msgs::PoseStamped pose_stamped{};
     pose_stamped.header.seq = m_seq_robot;
     pose_stamped.header.stamp = ros::Time::now();
     pose_stamped.header.frame_id = "odom";
@@ -186,7 +181,6 @@ void RobustPeopleFollower::odometryCallback(const nav_msgs::Odometry::ConstPtr& 
 }
 
 
-// TODO: change logical structure
 /**
  * @brief Manages the list of tracked persons with data received from the skeleton topic.
  * @param msg the message from the subscribed topic
@@ -195,7 +189,7 @@ void RobustPeopleFollower::skeletonCallback(const body_tracker_msgs::Skeleton::C
 {
 
     // save data from message
-    body_tracker_msgs::Skeleton skeleton;
+    body_tracker_msgs::Skeleton skeleton{};
 
     skeleton.body_id = msg->body_id;
     skeleton.tracking_status = msg->tracking_status;
@@ -215,85 +209,72 @@ void RobustPeopleFollower::skeletonCallback(const body_tracker_msgs::Skeleton::C
     skeleton.joint_position_right_elbow = msg->joint_position_right_elbow;
     skeleton.joint_position_right_hand = msg->joint_position_right_hand;
 
-    bool found = false;
-    for (auto& p : m_tracked_persons) {
-        if (p.id() == skeleton.body_id) {
-            found = true;
 
-            // update information
-            p.skeleton() = skeleton;
-            p.calculateAbsolutePosition(m_robot.pose().position.x, m_robot.pose().position.y, m_robot.angle());
-            p.calculateAngle();
-            p.calculateVelocity(LOOP_FREQUENCY);
+    int id = skeleton.body_id;
+    auto p = std::find(m_tracked_persons.begin(), m_tracked_persons.end(), id);
 
-            // target
-            if (p.target()) {
+    // person is already in the list
+    if (p != m_tracked_persons.end()) {
 
-                if (skeleton.centerOfMass.x == 0.0)
-                    break;
+        // update information
+        p->skeleton() = skeleton;
+        p->calculateAbsolutePosition(m_robot.pose().position.x, m_robot.pose().position.y, m_robot.angle());
+        p->calculateAngle();
+        p->calculateVelocity(LOOP_FREQUENCY);
 
-                // check for gestures
-                if (skeleton.gesture == 2 && p.hasCorrectHandHeight()) {
-                    if (p.gestureBegin() == ros::Time(0)) {
-                        p.gestureBegin() = ros::Time::now();
-                    }
-                } else {
-                    if (p.gestureBegin() != ros::Time(0)) {
+        // target
+        if (p->target()) {
 
-                        // TODO: figure out how to play a sound
-                        // target chooses to stop being followed
-                        if (ros::Time::now().sec - p.gestureBegin().sec >= 3) {
-                            p.target() = false;
+            // check for gestures
+            if (skeleton.gesture == 2 && p->correctHandHeight()) {
+                if (p->gestureBegin() == ros::Time(0)) {
+                    p->gestureBegin() = ros::Time::now();
+                }
+            } else {
+                if (p->gestureBegin() != ros::Time(0)) {
 
-                            // reset target's information
-                            /*
-                            m_target.setSkeleton({});
-                            m_target.setTarget(false);
-                            m_target.setVelocity(0.0);
-                            m_target.setAbsolutePosition(geometry_msgs::Point32{});
-                            m_target.setGestureBegin(ros::Time(0));
-                            m_target.setAngle(0.0);
-                            */
+                    // TODO: figure out how to play a sound
+                    // target chooses to stop being followed
+                    if (ros::Time::now().sec - p->gestureBegin().sec >= 3) {
+                        p->target() = false;
+                        m_target = Person{};
+                        m_robot.status() = Robot::Status::WAITING;
 
-                            m_robot.status() = Robot::Status::WAITING;
-
-                            // reset gesture beginning time
-                            p.gestureBegin() = ros::Time(0);
-                        }
+                        // reset gesture beginning time
+                        p->gestureBegin() = ros::Time(0);
                     }
                 }
             }
+        }
 
-                // other persons
-            else {
+            // other persons
+        else {
 
-                // check for gestures
-                if (skeleton.gesture == 2 && p.hasCorrectHandHeight()) {
-                    if (p.gestureBegin() == ros::Time(0)) {
-                        p.gestureBegin() = ros::Time::now();
-                    }
-                } else {
-                    if (p.gestureBegin() != ros::Time(0)) {
+            // check for gestures
+            if (skeleton.gesture == 2 && p->correctHandHeight()) {
+                if (p->gestureBegin() == ros::Time(0)) {
+                    p->gestureBegin() = ros::Time::now();
+                }
+            } else {
+                if (p->gestureBegin() != ros::Time(0)) {
 
-                        // TODO: figure out how to play a sound
-                        // new target selected after 3 seconds of closing both hands
-                        if (ros::Time::now().sec - p.gestureBegin().sec >= 3) {
-                            p.target() = true;
-                            m_robot.status() = Robot::Status::FOLLOWING;
+                    // TODO: figure out how to play a sound
+                    // new target selected after 3 seconds of closing both hands
+                    if (ros::Time::now().sec - p->gestureBegin().sec >= 3) {
+                        p->target() = true;
+                        m_robot.status() = Robot::Status::FOLLOWING;
 
-                            // reset gesture beginning time
-                            p.gestureBegin() = ros::Time(0);
-                        }
+                        // reset gesture beginning time
+                        p->gestureBegin() = ros::Time(0);
                     }
                 }
             }
         }
     }
 
-    // save new person if new id has been detected
-    if (!found) {
-        m_tracked_persons.emplace_back(Person(skeleton));
-    }
+        // add new person if skeleton id is not in list
+    else
+        m_tracked_persons.emplace_back(Person{skeleton});
 }
 
 
@@ -319,12 +300,12 @@ void RobustPeopleFollower::publishTargetPath()
 
 void RobustPeopleFollower::publishPersonMarkers() const
 {
-    std::vector<visualization_msgs::Marker> person_markers;
+    std::vector<visualization_msgs::Marker> person_markers{};
 
-    int i = 0;
+    auto i{0};
     for (auto& p : m_tracked_persons) {
         if (p.distance() > 0) {
-            visualization_msgs::Marker marker;
+            visualization_msgs::Marker marker{};
             marker.header.frame_id = "odom";
             marker.header.stamp = ros::Time();
             marker.ns = "persons";
@@ -371,7 +352,7 @@ void RobustPeopleFollower::publishPersonVectors() const
 {
     std::vector<visualization_msgs::Marker> person_vectors;
 
-    int i = 0;
+    auto i{0};
     for (auto& p : m_tracked_persons) {
         if (p.distance() > 0) {
             visualization_msgs::Marker vector;
@@ -413,7 +394,7 @@ void RobustPeopleFollower::publishPersonVectors() const
 
 void RobustPeopleFollower::publishRobotGoals() const
 {
-    visualization_msgs::Marker line_strip, line_list;
+    visualization_msgs::Marker line_strip{}, line_list{};
     line_strip.header.frame_id = line_list.header.frame_id = "odom";
     line_strip.header.stamp = line_list.header.stamp = ros::Time::now();
     line_strip.action = line_list.action = visualization_msgs::Marker::ADD;
@@ -436,18 +417,16 @@ void RobustPeopleFollower::publishRobotGoals() const
     line_list.color.r = 1.0;
     line_list.color.a = 1.0;
 
-    if (!m_robot.goalList().empty()) {
-        for (auto& g : m_robot.goalList()) {
-            geometry_msgs::Point p;
-            p.x = g.point.x;
-            p.y = g.point.y;
+    std::for_each(m_robot.waypoints().begin(), m_robot.waypoints().end(), [&](const geometry_msgs::PointStamped& w) {
+        geometry_msgs::Point p{};
+        p.x = w.point.x;
+        p.y = w.point.y;
 
-            line_strip.points.push_back(p);
-            line_list.points.push_back(p);
-            p.z += 1.0;
-            line_list.points.push_back(p);
-        }
-    }
+        line_strip.points.push_back(p);
+        line_list.points.push_back(p);
+        p.z += 1.0;
+        line_list.points.push_back(p);
+    });
 
     // publish markers
     m_visualization_pub.publish(line_strip);
@@ -457,14 +436,12 @@ void RobustPeopleFollower::publishRobotGoals() const
 
 void RobustPeopleFollower::managePersonList()
 {
-    if (!m_tracked_persons.empty()) {
-        auto it = m_tracked_persons.begin();
-        while (it != m_tracked_persons.end()) {
-            if (it->distance() == 0 && it->yDeviation() == 0)
-                it = m_tracked_persons.erase(it);
-            else
-                ++it;
-        }
+    auto it = m_tracked_persons.begin();
+    while (it != m_tracked_persons.end()) {
+        if (it->distance() == 0 && it->yDeviation() == 0)
+            it = m_tracked_persons.erase(it);
+        else
+            ++it;
     }
 }
 
@@ -485,7 +462,7 @@ void RobustPeopleFollower::updateTargetPath()
 
 visualization_msgs::Marker RobustPeopleFollower::estimationMarker() const
 {
-    visualization_msgs::Marker marker;
+    visualization_msgs::Marker marker{};
     marker.header.frame_id = "odom";
     marker.header.stamp = ros::Time();
     marker.ns = "estimation";
@@ -494,17 +471,11 @@ visualization_msgs::Marker RobustPeopleFollower::estimationMarker() const
     marker.lifetime = ros::Duration(20);
     marker.pose.position.x = m_target.pose().position.x;
     marker.pose.position.y = m_target.pose().position.y;
-    marker.pose.position.z = 0.0;
-    marker.pose.orientation.x = 0.0;
-    marker.pose.orientation.y = 0.0;
-    marker.pose.orientation.z = 0.0;
     marker.pose.orientation.w = 1.0;
     marker.scale.x = 1.0;
     marker.scale.y = 1.0;
     marker.scale.z = 1.0;
     marker.color.a = 0.5;
-    marker.color.r = 0.0;
-    marker.color.g = 0.0;
     marker.color.b = 1.0;
     marker.mesh_resource = "package://robust_people_follower/meshes/standing.dae";
 
@@ -514,7 +485,7 @@ visualization_msgs::Marker RobustPeopleFollower::estimationMarker() const
 
 visualization_msgs::Marker RobustPeopleFollower::estimationVector() const
 {
-    visualization_msgs::Marker vector;
+    visualization_msgs::Marker vector{};
     vector.header.frame_id = "odom";
     vector.header.stamp = ros::Time();
     vector.ns = "vectors";
@@ -534,8 +505,6 @@ visualization_msgs::Marker RobustPeopleFollower::estimationVector() const
     vector.scale.z = 0.1;
     vector.color.a = 1.0;
     vector.color.r = 1.0;
-    vector.color.g = 0.0;
-    vector.color.b = 0.0;
 
     return vector;
 }

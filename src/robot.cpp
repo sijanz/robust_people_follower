@@ -38,13 +38,9 @@
 #include "robust_people_follower/robot.h"
 
 
-Robot::Robot() : m_status(WAITING), m_goal_list(std::deque<geometry_msgs::PointStamped>{}),
-                 m_current_linear(0.0), m_current_angular(0.0) {}
-
-
 void Robot::printInfo() const
 {
-    const char *status_string;
+    auto status_string{""};
     switch (m_status) {
         case 0:
             status_string = "WAITING";
@@ -67,39 +63,39 @@ void Robot::printInfo() const
 }
 
 
-void Robot::addNewGoal(const Person& t_target, int t_times_per_second)
+void Robot::addNewWaypoint(const Person& t_target, int t_times_per_second)
 {
-    if (m_goal_list.size() > 100)
-        m_goal_list.pop_front();
+    if (m_waypoint_list.size() > 100)
+        m_waypoint_list.pop_front();
 
     if (ros::Time::now() - m_last_waypoint_time > ros::Duration(0, (1000000000 / t_times_per_second))) {
-        geometry_msgs::PointStamped position;
+        geometry_msgs::PointStamped position{};
         position.header.stamp = ros::Time::now();
         position.point.x = t_target.pose().position.x;
         position.point.y = t_target.pose().position.y;
         position.point.z = 0.0;
 
         m_last_waypoint_time = ros::Time::now();
-        m_goal_list.emplace_back(position);
+        m_waypoint_list.emplace_back(position);
     }
 }
 
 
 geometry_msgs::Twist Robot::velocityCommand(const Person& t_target, const double FOLLOW_THRESHOLD)
 {
-    double distance_to_target = t_target.distance();
+    auto distance_to_target = t_target.distance();
 
     // FIXME: ugly, only temporary fix
     if (distance_to_target == 0)
         distance_to_target = FOLLOW_THRESHOLD + 200;
 
     if (distance_to_target < FOLLOW_THRESHOLD)
-        m_goal_list.clear();
+        m_waypoint_list.clear();
 
-    if (m_status == Status::LOS_LOST && m_goal_list.empty())
+    if (m_status == Status::LOS_LOST && m_waypoint_list.empty())
         m_status = Status::SEARCHING;
 
-    geometry_msgs::Twist speed = {};
+    geometry_msgs::Twist speed{};
 
     // if target is too near, move backwards
     if (distance_to_target < 1000) {
@@ -124,21 +120,21 @@ geometry_msgs::Twist Robot::velocityCommand(const Person& t_target, const double
             speed.angular.z = 0;
 
         // target is above threshold, follow him using waypoints
-    } else if (!m_goal_list.empty()) {
+    } else if (!m_waypoint_list.empty()) {
 
-        geometry_msgs::PointStamped& current_goal = m_goal_list.at(0);
+        auto current_goal = m_waypoint_list.at(0);
 
-        double inc_x = current_goal.point.x - m_pose.position.x;
-        double inc_y = current_goal.point.y - m_pose.position.y;
+        auto inc_x = current_goal.point.x - m_pose.position.x;
+        auto inc_y = current_goal.point.y - m_pose.position.y;
 
-        double angle_to_goal = atan2(inc_y, inc_x);
-        double distance_to_goal = sqrt(pow(current_goal.point.x - m_pose.position.x, 2)
-                                       + pow(current_goal.point.y - m_pose.position.y, 2));
+        auto angle_to_goal = atan2(inc_y, inc_x);
+        auto distance_to_goal = sqrt(pow(current_goal.point.x - m_pose.position.x, 2)
+                                     + pow(current_goal.point.y - m_pose.position.y, 2));
 
-        double speed_linear = 0.3;
+        auto speed_linear{0.3};
 
         if (m_status == Status::FOLLOWING) {
-            double n = -(0.32 * ((FOLLOW_THRESHOLD / 1000) - 0.2));
+            auto n = -(0.32 * ((FOLLOW_THRESHOLD / 1000) - 0.2));
             speed_linear = 0.32 * (distance_to_target / 1000) + n;
 
             // maximum of 0.6 m/s linear velocity
@@ -153,7 +149,7 @@ geometry_msgs::Twist Robot::velocityCommand(const Person& t_target, const double
             speed.linear.x = m_current_linear - (m_current_linear / 100) * 40;
             speed.angular.z = m_current_angular - (m_current_angular / 100) * 40;
 
-            m_goal_list.pop_front();
+            m_waypoint_list.pop_front();
 
             // FIXME: buggy, robots tends to drive in circles
         } else if (angle_to_goal - m_angle_radian > 0.1)
@@ -173,10 +169,10 @@ geometry_msgs::Twist Robot::velocityCommand(const Person& t_target, const double
 
 void Robot::calculateAngle()
 {
-    tf::Quaternion q(m_pose.orientation.x, m_pose.orientation.y, m_pose.orientation.z, m_pose.orientation.w);
-    tf::Matrix3x3 m(q);
+    tf::Quaternion q{m_pose.orientation.x, m_pose.orientation.y, m_pose.orientation.z, m_pose.orientation.w};
+    tf::Matrix3x3 m{q};
 
-    double roll, pitch, theta;
+    auto roll{0.0}, pitch{0.0}, theta{0.0};
     m.getRPY(roll, pitch, theta);
 
     m_angle_radian = theta;

@@ -61,49 +61,49 @@ public:
 private:
 
     // name of the node
-    std::string m_name;
+    std::string m_name{};
 
     // ROS node handle
-    ros::NodeHandle m_nh;
+    ros::NodeHandle m_nh{};
 
     // subscribers
-    ros::Subscriber m_odom_sub;
-    ros::Subscriber m_skeleton_sub;
+    ros::Subscriber m_odom_sub{};
+    ros::Subscriber m_skeleton_sub{};
 
     // publishers
-    ros::Publisher m_velocity_command_pub;
-    ros::Publisher m_robot_path_pub;
-    ros::Publisher m_target_path_pub;
-    ros::Publisher m_visualization_pub;
+    ros::Publisher m_velocity_command_pub{};
+    ros::Publisher m_robot_path_pub{};
+    ros::Publisher m_target_path_pub{};
+    ros::Publisher m_visualization_pub{};
 
     // frequency of the main loop
-    const double LOOP_FREQUENCY = 10.0;
+    const double LOOP_FREQUENCY{10.0};
 
     // factor for person vector length
-    const double VECTOR_LENGTH_FACTOR = 1.0;
+    const double VECTOR_LENGTH_FACTOR{1.0};
 
-    const double FOLLOW_THRESHOLD = 1800;
+    const double FOLLOW_THRESHOLD{1800};
 
     // instance of the turtlebot robot
-    Robot m_robot;
+    Robot m_robot{};
 
     // instance of the target to follow
-    Person m_target;
+    Person m_target{};
 
     // list of persons in the frame
-    std::vector<Person> m_tracked_persons;
+    std::vector<Person> m_tracked_persons{};
 
     // stores the path of the robot
-    nav_msgs::Path m_robot_path;
+    nav_msgs::Path m_robot_path{};
 
     // stores the path of the target
-    nav_msgs::Path m_target_path;
+    nav_msgs::Path m_target_path{};
 
     // sequence number for robot path
-    uint32_t m_seq_robot;
+    uint32_t m_seq_robot{};
 
     // sequence number for target path
-    uint32_t m_seq_target;
+    uint32_t m_seq_target{};
 
     // helper methods to keep the main loop tidy
     void debugPrintout();

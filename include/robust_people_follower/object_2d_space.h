@@ -43,7 +43,7 @@
 class Object2DSpace
 {
 public:
-    Object2DSpace();
+    // implicit default constructor
 
     // pure virtual methods
     virtual void printInfo() const = 0;
@@ -51,7 +51,6 @@ public:
 
     // setters
     inline geometry_msgs::Pose& pose() { return m_pose; }
-    inline geometry_msgs::Pose& oldPose() { return m_old_pose; }
     inline double& angle() { return m_angle_radian; }
 
     // getters
@@ -59,14 +58,18 @@ public:
     inline const double velocity() const { return m_velocity; }
     inline const double angle() const { return m_angle_radian; }
 
-    void updateOldPose();
-    void calculateVelocity(double t_frequency);
+    inline void updateOldPose() { m_old_pose = m_pose; }
+    inline void calculateVelocity(double t_frequency)
+    {
+        m_velocity = sqrt(pow((m_old_pose.position.x - m_pose.position.x), 2) +
+                          pow((m_old_pose.position.y - m_pose.position.y), 2)) / (1 / t_frequency);
+    }
 
 protected:
-    geometry_msgs::Pose m_pose;
-    geometry_msgs::Pose m_old_pose;
-    double m_velocity;
-    double m_angle_radian;
+    geometry_msgs::Pose m_pose{};
+    geometry_msgs::Pose m_old_pose{};
+    double m_velocity{};
+    double m_angle_radian{};
 };
 
 

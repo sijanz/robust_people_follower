@@ -39,7 +39,7 @@
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "robust_people_follower");
-    RobustPeopleFollower robust_people_follower(ros::this_node::getName());
+    RobustPeopleFollower robust_people_follower{ros::this_node::getName()};
     robust_people_follower.runLoop();
 
     return 0;
