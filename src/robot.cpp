@@ -73,7 +73,6 @@ void Robot::addNewWaypoint(const Person& t_target, int t_times_per_second)
         position.header.stamp = ros::Time::now();
         position.point.x = t_target.pose().position.x;
         position.point.y = t_target.pose().position.y;
-        position.point.z = 0.0;
 
         m_last_waypoint_time = ros::Time::now();
         m_waypoint_list.emplace_back(position);

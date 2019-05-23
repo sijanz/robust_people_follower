@@ -107,11 +107,9 @@ private:
 
     // helper methods to keep the main loop tidy
     void debugPrintout();
-    void publishRobotPath();
-    void publishTargetPath();
+    void publishPaths();
     void publishPersonMarkers() const;
-    void publishPersonVectors() const;
-    void publishRobotGoals() const;
+    void publishWaypoints() const;
     void managePersonList();
     void updateTargetPath();
     visualization_msgs::Marker estimationMarker() const;

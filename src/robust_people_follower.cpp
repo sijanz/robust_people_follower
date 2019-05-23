@@ -106,11 +106,9 @@ void RobustPeopleFollower::runLoop()
             m_velocity_command_pub.publish(m_robot.velocityCommand(m_target, FOLLOW_THRESHOLD));
 
         // publish markers to view in RViz
-        publishRobotPath();
-        publishTargetPath();
+        publishPaths();
         publishPersonMarkers();
-        publishPersonVectors();
-        publishRobotGoals();
+        publishWaypoints();
 
         // set old positions to calculate velocities
         m_robot.updateOldPose();
@@ -278,18 +276,14 @@ void RobustPeopleFollower::skeletonCallback(const body_tracker_msgs::Skeleton::C
 }
 
 
-void RobustPeopleFollower::publishRobotPath()
+void RobustPeopleFollower::publishPaths()
 {
     m_robot_path.header.seq = m_seq_robot;
     m_robot_path.header.stamp = ros::Time::now();
     m_robot_path.header.frame_id = "odom";
     m_robot_path_pub.publish(m_robot_path);
     ++m_seq_robot;
-}
 
-
-void RobustPeopleFollower::publishTargetPath()
-{
     m_target_path.header.seq = m_seq_target;
     m_target_path.header.stamp = ros::Time::now();
     m_target_path.header.frame_id = "odom";
@@ -300,7 +294,7 @@ void RobustPeopleFollower::publishTargetPath()
 
 void RobustPeopleFollower::publishPersonMarkers() const
 {
-    std::vector<visualization_msgs::Marker> person_markers{};
+    std::vector<visualization_msgs::Marker> person_markers{}, person_vectors{};
 
     auto i{0};
     for (auto& p : m_tracked_persons) {
@@ -315,10 +309,6 @@ void RobustPeopleFollower::publishPersonMarkers() const
             marker.lifetime = ros::Duration(0.3);
             marker.pose.position.x = p.pose().position.x;
             marker.pose.position.y = p.pose().position.y;
-            marker.pose.position.z = 0.0;
-            marker.pose.orientation.x = 0.0;
-            marker.pose.orientation.y = 0.0;
-            marker.pose.orientation.z = 0.0;
             marker.pose.orientation.w = 1.0;
 
             marker.scale.x = 1.0;
@@ -328,7 +318,6 @@ void RobustPeopleFollower::publishPersonMarkers() const
             marker.color.a = 1.0;
             marker.color.r = 1.0;
             marker.color.g = 0.5;
-            marker.color.b = 0.0;
 
             marker.mesh_resource = "package://robust_people_follower/meshes/standing.dae";
 
@@ -339,22 +328,7 @@ void RobustPeopleFollower::publishPersonMarkers() const
             }
 
             person_markers.emplace_back(marker);
-            ++i;
-        }
-    }
 
-    std::for_each(person_markers.begin(), person_markers.end(),
-                  [&](const visualization_msgs::Marker& m) { m_visualization_pub.publish(m); });
-}
-
-
-void RobustPeopleFollower::publishPersonVectors() const
-{
-    std::vector<visualization_msgs::Marker> person_vectors;
-
-    auto i{0};
-    for (auto& p : m_tracked_persons) {
-        if (p.distance() > 0) {
             visualization_msgs::Marker vector;
             vector.header.frame_id = "odom";
             vector.header.stamp = ros::Time();
@@ -377,22 +351,23 @@ void RobustPeopleFollower::publishPersonVectors() const
             vector.scale.y = 0.1;
             vector.scale.z = 0.1;
 
-            vector.color.a = 1.0; // Don't forget to set the alpha!
+            vector.color.a = 1.0;
             vector.color.r = 1.0;
-            vector.color.g = 0.0;
-            vector.color.b = 0.0;
 
             person_vectors.emplace_back(vector);
+
             ++i;
         }
     }
 
+    std::for_each(person_markers.begin(), person_markers.end(),
+                  [this](const visualization_msgs::Marker& m) { m_visualization_pub.publish(m); });
     std::for_each(person_vectors.begin(), person_vectors.end(),
-                  [&](const visualization_msgs::Marker& m) { m_visualization_pub.publish(m); });
+                  [this](const visualization_msgs::Marker& m) { m_visualization_pub.publish(m); });
 }
 
 
-void RobustPeopleFollower::publishRobotGoals() const
+void RobustPeopleFollower::publishWaypoints() const
 {
     visualization_msgs::Marker line_strip{}, line_list{};
     line_strip.header.frame_id = line_list.header.frame_id = "odom";
