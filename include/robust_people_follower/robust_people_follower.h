@@ -112,8 +112,9 @@ private:
     void publishWaypoints() const;
     void managePersonList();
     void updateTargetPath();
-    visualization_msgs::Marker estimationMarker() const;
-    visualization_msgs::Marker estimationVector() const;
+    visualization_msgs::Marker lastPointMarker() const;
+    visualization_msgs::Marker targetEstimationVector() const;
+    visualization_msgs::Marker targetEstimationMarker() const;
 };
 
 

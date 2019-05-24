@@ -70,8 +70,8 @@ void RobustPeopleFollower::runLoop()
     while (ros::ok()) {
 
         // create markers to be published if the target is lost
-        visualization_msgs::Marker estimation_marker = estimationMarker();
-        visualization_msgs::Marker estimation_vector = estimationVector();
+        visualization_msgs::Marker last_point_marker = lastPointMarker();
+        visualization_msgs::Marker estimation_vector = targetEstimationVector();
 
         // process callbacks
         ros::spinOnce();
@@ -84,6 +84,12 @@ void RobustPeopleFollower::runLoop()
             }
         }
 
+        if (m_robot.status() == Robot::Status::LOS_LOST || m_robot.status() == Robot::Status::SEARCHING) {
+            m_robot.estimateTargetPosition(m_target);
+            m_visualization_pub.publish(targetEstimationMarker());
+        }
+
+
         // add new goal to goal list
         if (m_target.distance() > FOLLOW_THRESHOLD)
             m_robot.addNewWaypoint(m_target, 4);
@@ -94,7 +100,7 @@ void RobustPeopleFollower::runLoop()
             m_robot.status() = Robot::Status::LOS_LOST;
 
             // publish estimation markers
-            m_visualization_pub.publish(estimation_marker);
+            m_visualization_pub.publish(last_point_marker);
             m_visualization_pub.publish(estimation_vector);
         }
 
@@ -435,12 +441,12 @@ void RobustPeopleFollower::updateTargetPath()
 }
 
 
-visualization_msgs::Marker RobustPeopleFollower::estimationMarker() const
+visualization_msgs::Marker RobustPeopleFollower::lastPointMarker() const
 {
     visualization_msgs::Marker marker{};
     marker.header.frame_id = "odom";
     marker.header.stamp = ros::Time();
-    marker.ns = "estimation";
+    marker.ns = "last_seen";
     marker.type = visualization_msgs::Marker::MESH_RESOURCE;
     marker.action = visualization_msgs::Marker::ADD;
     marker.lifetime = ros::Duration(20);
@@ -450,7 +456,7 @@ visualization_msgs::Marker RobustPeopleFollower::estimationMarker() const
     marker.scale.x = 1.0;
     marker.scale.y = 1.0;
     marker.scale.z = 1.0;
-    marker.color.a = 0.5;
+    marker.color.a = 1.0;
     marker.color.b = 1.0;
     marker.mesh_resource = "package://robust_people_follower/meshes/standing.dae";
 
@@ -458,7 +464,7 @@ visualization_msgs::Marker RobustPeopleFollower::estimationMarker() const
 }
 
 
-visualization_msgs::Marker RobustPeopleFollower::estimationVector() const
+visualization_msgs::Marker RobustPeopleFollower::targetEstimationVector() const
 {
     visualization_msgs::Marker vector{};
     vector.header.frame_id = "odom";
@@ -470,7 +476,7 @@ visualization_msgs::Marker RobustPeopleFollower::estimationVector() const
     vector.pose.position.x = m_target.pose().position.x;
     vector.pose.position.y = m_target.pose().position.y;
     vector.pose.position.z = 1.3;
-    tf::Quaternion q = tf::createQuaternionFromYaw(m_target.angle());
+    tf::Quaternion q = tf::createQuaternionFromYaw(m_target.averageAngle());
     vector.pose.orientation.x = q.getX();
     vector.pose.orientation.y = q.getY();
     vector.pose.orientation.z = q.getZ();
@@ -482,4 +488,27 @@ visualization_msgs::Marker RobustPeopleFollower::estimationVector() const
     vector.color.r = 1.0;
 
     return vector;
+}
+
+
+visualization_msgs::Marker RobustPeopleFollower::targetEstimationMarker() const
+{
+    visualization_msgs::Marker marker{};
+    marker.header.frame_id = "odom";
+    marker.header.stamp = ros::Time();
+    marker.ns = "estimation";
+    marker.type = visualization_msgs::Marker::MESH_RESOURCE;
+    marker.action = visualization_msgs::Marker::ADD;
+    marker.lifetime = ros::Duration(0.3);
+    marker.pose.position.x = m_robot.estimatedTargetPosition().x;
+    marker.pose.position.y = m_robot.estimatedTargetPosition().y;
+    marker.pose.orientation.w = 1.0;
+    marker.scale.x = 1.0;
+    marker.scale.y = 1.0;
+    marker.scale.z = 1.0;
+    marker.color.a = 0.5;
+    marker.color.b = 1.0;
+    marker.mesh_resource = "package://robust_people_follower/meshes/standing.dae";
+
+    return marker;
 }

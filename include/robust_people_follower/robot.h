@@ -42,6 +42,7 @@
 #include <geometry_msgs/Twist.h>
 #include <geometry_msgs/PointStamped.h>
 #include <geometry_msgs/Pose.h>
+#include <visualization_msgs/Marker.h>
 
 #include "robust_people_follower/object_2d_space.h"
 #include "robust_people_follower/person.h"
@@ -70,13 +71,15 @@ public:
     void calculateAngle() override;
     void calculateVelocity(double t_frequency) override;
     void addNewWaypoint(const Person& t_target, int t_times_per_second);
+    void estimateTargetPosition(const Person& t_target);
 
     // setters
     inline Robot::Status& status() { return m_status; }
 
     // getters
     inline const Robot::Status status() const { return m_status; }
-    inline const std::shared_ptr<std::deque<geometry_msgs::PointStamped>> waypoints() const { return m_waypoint_list; };
+    inline const std::shared_ptr<std::deque<geometry_msgs::PointStamped>> waypoints() const { return m_waypoint_list; }
+    inline const geometry_msgs::Point32 estimatedTargetPosition() const { return m_estimated_target_position; }
 
 private:
     Status m_status{Status::WAITING};
@@ -84,6 +87,7 @@ private:
     ros::Time m_last_waypoint_time{};
     double m_current_linear{};
     double m_current_angular{};
+    geometry_msgs::Point32 m_estimated_target_position{};
 };
 
 

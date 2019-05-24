@@ -40,7 +40,7 @@
 
 Robot::Robot() :
         m_status{Status::WAITING}, m_waypoint_list{new std::deque<geometry_msgs::PointStamped>{}},
-        m_last_waypoint_time{}, m_current_linear{}, m_current_angular{} {}
+        m_last_waypoint_time{}, m_current_linear{}, m_current_angular{}, m_estimated_target_position{} {}
 
 
 void Robot::printInfo() const
@@ -64,7 +64,10 @@ void Robot::printInfo() const
     ROS_INFO("  position:");
     ROS_INFO("    x: %f", m_pose.position.x);
     ROS_INFO("    y: %f", m_pose.position.y);
-    ROS_INFO("  theta: %f\n", m_angle_radian);
+    ROS_INFO("  theta: %f", m_angle_radian);
+    ROS_INFO("  predicted target position:");
+    ROS_INFO("    x: %f", m_estimated_target_position.x);
+    ROS_INFO("    y: %f\n", m_estimated_target_position.y);
 }
 
 
@@ -155,12 +158,12 @@ geometry_msgs::Twist Robot::velocityCommand(const Person& t_target, const double
 
             m_waypoint_list->pop_front();
 
-            // FIXME: buggy, robots tends to drive in circles, counteract pendulum effect
+            // FIXME: buggy, robots tends to drive in circles
 
-        } else if (angle_to_goal - m_angle_radian > 0.1)
-            speed.angular.z = 0.5 * (angle_to_goal - m_angle_radian);
-        else if (angle_to_goal - m_angle_radian < -0.1)
-            speed.angular.z = -0.5 * std::abs(angle_to_goal - m_angle_radian);
+        } else if (angle_to_goal - m_angle_radian > 0.0)
+            speed.angular.z = 1 * (angle_to_goal - m_angle_radian);
+        else if (angle_to_goal - m_angle_radian < -0.0)
+            speed.angular.z = -1 * std::abs(angle_to_goal - m_angle_radian);
 
         speed.linear.x = speed_linear;
     }
@@ -188,4 +191,15 @@ void Robot::calculateVelocity(double t_frequency)
 {
     m_velocity = sqrt(pow((m_old_pose.position.x - m_pose.position.x), 2) +
                       pow((m_old_pose.position.y - m_pose.position.y), 2)) / (1 / t_frequency);
+}
+
+
+// FIXME: doesn't work properly
+// TODO: test
+void Robot::estimateTargetPosition(const Person& t_target)
+{
+    auto distance{t_target.averageVelocity() * (ros::Time::now() - t_target.lastSeen()).toSec()};
+
+    m_estimated_target_position.x = t_target.pose().position.x + cos(t_target.averageAngle() * distance);
+    m_estimated_target_position.y = t_target.pose().position.y + sin(t_target.averageAngle() * distance);
 }

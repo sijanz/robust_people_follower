@@ -52,12 +52,17 @@
 class Person : public Object2DSpace
 {
 public:
+
+    // special methods
     Person() = default;
     explicit Person(const body_tracker_msgs::Skeleton& t_skeleton);
     inline Person& operator=(const Person& rhs) = default;
     inline bool operator==(const int t_id) { return t_id == m_skeleton.body_id; }
+
+    // inherited methods
     void printInfo() const override;
-    void printVerboseInfo() const;
+    void calculateAngle() override;
+    void calculateVelocity(double t_frequency) override;
 
     // setters
     inline bool& target() { return m_is_target; }
@@ -68,11 +73,14 @@ public:
     inline const bool target() const { return m_is_target; }
     inline const double distance() const { return m_skeleton.centerOfMass.x; }
     inline const double yDeviation() const { return m_skeleton.centerOfMass.y; }
+    inline const double averageVelocity() const { return m_average_velocity; }
+    inline const double averageAngle() const { return m_average_angle; }
+    inline const ros::Time lastSeen() const { return m_velocities->at(m_velocities->size() - 1).stamp; }
 
+    void printVerboseInfo() const;
     bool correctHandHeight() const;
     void calculateAbsolutePosition(double t_robot_x, double t_robot_y, double t_robot_angle);
-    void calculateAngle() override;
-    void calculateVelocity(double t_frequency) override;
+
 
 private:
     bool m_is_target{};
