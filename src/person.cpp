@@ -36,8 +36,9 @@
 #include "robust_people_follower/person.h"
 
 
-Person::Person(const body_tracker_msgs::Skeleton& t_skeleton) : m_is_target{}, m_gesture_begin{},
-                                                                m_skeleton{t_skeleton} {}
+Person::Person(const body_tracker_msgs::Skeleton& t_skeleton) :
+        m_is_target{}, m_gesture_begin{}, m_skeleton{t_skeleton}, m_average_velocity{},
+        m_velocities{new std::vector<VelocityStamped>{}}, m_angles{new std::vector<QuaternionStamped>{}} {}
 
 
 void Person::printInfo() const
@@ -51,6 +52,8 @@ void Person::printVerboseInfo() const
 {
     ROS_INFO("id: %d", m_skeleton.body_id);
     ROS_INFO("  velocity: %f", m_velocity);
+    ROS_INFO("  average velocity: %f", m_average_velocity);
+    ROS_INFO("  average angle: %f", m_average_angle);
     ROS_INFO("  position (relative)");
     ROS_INFO("    x: %f", m_skeleton.joint_position_spine_top.x);
     ROS_INFO("    y: %f", m_skeleton.joint_position_spine_top.y);
@@ -82,4 +85,43 @@ void Person::calculateAngle()
 {
     m_angle_radian = std::atan2((m_pose.position.y - m_old_pose.position.y),
                                 (m_pose.position.x - m_old_pose.position.x));
+
+    auto it = m_angles->begin();
+    while (it != m_angles->end()) {
+        if (ros::Time::now() - it->stamp > ros::Duration(2))
+            it = m_angles->erase(it);
+        else
+            ++it;
+    }
+
+    m_angles->emplace_back(QuaternionStamped{m_angle_radian, ros::Time::now()});
+
+    QuaternionStamped sum{};
+    std::for_each(m_angles->begin(), m_angles->end(), [&sum](const QuaternionStamped& qs) { sum += qs; });
+    sum /= m_angles->size();
+
+    m_average_angle = sum.quaternion.getAngle();
+}
+
+
+void Person::calculateVelocity(double t_frequency)
+{
+    m_velocity = sqrt(pow((m_old_pose.position.x - m_pose.position.x), 2) +
+                      pow((m_old_pose.position.y - m_pose.position.y), 2)) / (1 / t_frequency);
+
+    auto it = m_velocities->begin();
+    while (it != m_velocities->end()) {
+        if (ros::Time::now() - it->stamp > ros::Duration(2))
+            it = m_velocities->erase(it);
+        else
+            ++it;
+    }
+
+    m_velocities->emplace_back(VelocityStamped{m_velocity, ros::Time::now()});
+
+    VelocityStamped sum{};
+    std::for_each(m_velocities->begin(), m_velocities->end(), [&sum](const VelocityStamped& vs) { sum += vs; });
+    sum /= m_velocities->size();
+
+    m_average_velocity = sum.velocity;
 }

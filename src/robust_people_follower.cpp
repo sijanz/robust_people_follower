@@ -346,7 +346,7 @@ void RobustPeopleFollower::publishPersonMarkers() const
             vector.pose.orientation.z = q.getZ();
             vector.pose.orientation.w = q.getW();
 
-            vector.scale.x = 0.5 + VECTOR_LENGTH_FACTOR * p.velocity();
+            vector.scale.x = 0.0 + VECTOR_LENGTH_FACTOR * p.velocity();
             vector.scale.y = 0.1;
             vector.scale.z = 0.1;
 

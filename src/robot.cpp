@@ -155,7 +155,8 @@ geometry_msgs::Twist Robot::velocityCommand(const Person& t_target, const double
 
             m_waypoint_list->pop_front();
 
-            // FIXME: buggy, robots tends to drive in circles
+            // FIXME: buggy, robots tends to drive in circles, counteract pendulum effect
+
         } else if (angle_to_goal - m_angle_radian > 0.1)
             speed.angular.z = 0.5 * (angle_to_goal - m_angle_radian);
         else if (angle_to_goal - m_angle_radian < -0.1)
@@ -180,4 +181,11 @@ void Robot::calculateAngle()
     m.getRPY(roll, pitch, theta);
 
     m_angle_radian = theta;
+}
+
+
+void Robot::calculateVelocity(double t_frequency)
+{
+    m_velocity = sqrt(pow((m_old_pose.position.x - m_pose.position.x), 2) +
+                      pow((m_old_pose.position.y - m_pose.position.y), 2)) / (1 / t_frequency);
 }

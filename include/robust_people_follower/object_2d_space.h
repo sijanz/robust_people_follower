@@ -39,6 +39,8 @@
 
 #include <geometry_msgs/Pose.h>
 
+#include "robust_people_follower/stamped_types.h"
+
 
 class Object2DSpace
 {
@@ -48,6 +50,7 @@ public:
     // pure virtual methods
     virtual void printInfo() const = 0;
     virtual void calculateAngle() = 0;
+    virtual void calculateVelocity(double t_frequency) = 0;
 
     // setters
     inline geometry_msgs::Pose& pose() { return m_pose; }
@@ -59,11 +62,6 @@ public:
     inline const double angle() const { return m_angle_radian; }
 
     inline void updateOldPose() { m_old_pose = m_pose; }
-    inline void calculateVelocity(double t_frequency)
-    {
-        m_velocity = sqrt(pow((m_old_pose.position.x - m_pose.position.x), 2) +
-                          pow((m_old_pose.position.y - m_pose.position.y), 2)) / (1 / t_frequency);
-    }
 
 protected:
     geometry_msgs::Pose m_pose{};

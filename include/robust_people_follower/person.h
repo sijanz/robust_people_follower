@@ -72,11 +72,16 @@ public:
     bool correctHandHeight() const;
     void calculateAbsolutePosition(double t_robot_x, double t_robot_y, double t_robot_angle);
     void calculateAngle() override;
+    void calculateVelocity(double t_frequency) override;
 
 private:
     bool m_is_target{};
     body_tracker_msgs::Skeleton m_skeleton{};
     ros::Time m_gesture_begin{};
+    double m_average_velocity{};
+    double m_average_angle{};
+    std::shared_ptr<std::vector<VelocityStamped>> m_velocities;
+    std::shared_ptr<std::vector<QuaternionStamped>> m_angles;
 };
 
 

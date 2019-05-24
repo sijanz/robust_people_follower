@@ -68,6 +68,7 @@ public:
     geometry_msgs::Twist velocityCommand(const Person& t_target, double FOLLOW_THRESHOLD);
 
     void calculateAngle() override;
+    void calculateVelocity(double t_frequency) override;
     void addNewWaypoint(const Person& t_target, int t_times_per_second);
 
     // setters

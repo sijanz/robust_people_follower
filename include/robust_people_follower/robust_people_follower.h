@@ -80,7 +80,7 @@ private:
     const double LOOP_FREQUENCY{10.0};
 
     // factor for person vector length
-    const double VECTOR_LENGTH_FACTOR{1.0};
+    const double VECTOR_LENGTH_FACTOR{1.5};
 
     const double FOLLOW_THRESHOLD{1800};
 
