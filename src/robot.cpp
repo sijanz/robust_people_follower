@@ -38,6 +38,11 @@
 #include "robust_people_follower/robot.h"
 
 
+Robot::Robot() :
+        m_status{Status::WAITING}, m_waypoint_list{new std::deque<geometry_msgs::PointStamped>{}},
+        m_last_waypoint_time{}, m_current_linear{}, m_current_angular{} {}
+
+
 void Robot::printInfo() const
 {
     auto status_string{""};
@@ -65,8 +70,8 @@ void Robot::printInfo() const
 
 void Robot::addNewWaypoint(const Person& t_target, int t_times_per_second)
 {
-    if (m_waypoint_list.size() > 100)
-        m_waypoint_list.pop_front();
+    if (m_waypoint_list->size() > 100)
+        m_waypoint_list->pop_front();
 
     if (ros::Time::now() - m_last_waypoint_time > ros::Duration(0, (1000000000 / t_times_per_second))) {
         geometry_msgs::PointStamped position{};
@@ -75,23 +80,23 @@ void Robot::addNewWaypoint(const Person& t_target, int t_times_per_second)
         position.point.y = t_target.pose().position.y;
 
         m_last_waypoint_time = ros::Time::now();
-        m_waypoint_list.emplace_back(position);
+        m_waypoint_list->emplace_back(position);
     }
 }
 
 
 geometry_msgs::Twist Robot::velocityCommand(const Person& t_target, const double FOLLOW_THRESHOLD)
 {
-    auto distance_to_target = t_target.distance();
+    auto distance_to_target{t_target.distance()};
 
     // FIXME: ugly, only temporary fix
     if (distance_to_target == 0)
         distance_to_target = FOLLOW_THRESHOLD + 200;
 
     if (distance_to_target < FOLLOW_THRESHOLD)
-        m_waypoint_list.clear();
+        m_waypoint_list->clear();
 
-    if (m_status == Status::LOS_LOST && m_waypoint_list.empty())
+    if (m_status == Status::LOS_LOST && m_waypoint_list->empty())
         m_status = Status::SEARCHING;
 
     geometry_msgs::Twist speed{};
@@ -119,16 +124,16 @@ geometry_msgs::Twist Robot::velocityCommand(const Person& t_target, const double
             speed.angular.z = 0;
 
         // target is above threshold, follow him using waypoints
-    } else if (!m_waypoint_list.empty()) {
+    } else if (!m_waypoint_list->empty()) {
 
-        auto current_goal = m_waypoint_list.at(0);
+        auto current_goal{m_waypoint_list->at(0)};
 
-        auto inc_x = current_goal.point.x - m_pose.position.x;
-        auto inc_y = current_goal.point.y - m_pose.position.y;
+        auto inc_x{current_goal.point.x - m_pose.position.x};
+        auto inc_y{current_goal.point.y - m_pose.position.y};
 
-        auto angle_to_goal = atan2(inc_y, inc_x);
-        auto distance_to_goal = sqrt(pow(current_goal.point.x - m_pose.position.x, 2)
-                                     + pow(current_goal.point.y - m_pose.position.y, 2));
+        auto angle_to_goal{atan2(inc_y, inc_x)};
+        auto distance_to_goal{sqrt(pow(current_goal.point.x - m_pose.position.x, 2) +
+                                   pow(current_goal.point.y - m_pose.position.y, 2))};
 
         auto speed_linear{0.3};
 
@@ -148,7 +153,7 @@ geometry_msgs::Twist Robot::velocityCommand(const Person& t_target, const double
             speed.linear.x = m_current_linear - (m_current_linear / 100) * 40;
             speed.angular.z = m_current_angular - (m_current_angular / 100) * 40;
 
-            m_waypoint_list.pop_front();
+            m_waypoint_list->pop_front();
 
             // FIXME: buggy, robots tends to drive in circles
         } else if (angle_to_goal - m_angle_radian > 0.1)

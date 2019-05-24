@@ -34,13 +34,14 @@
 
 
 #include <tf/transform_datatypes.h>
+#include <memory>
 
 #include "robust_people_follower/robust_people_follower.h"
 
 
-RobustPeopleFollower::RobustPeopleFollower(const std::string& t_name) : m_robot{}, m_target{}, m_tracked_persons{},
-                                                                        m_robot_path{}, m_target_path{}, m_seq_robot{},
-                                                                        m_seq_target{}
+RobustPeopleFollower::RobustPeopleFollower(const std::string& t_name)
+        : m_robot{}, m_target{}, m_robot_path{new nav_msgs::Path{}}, m_target_path{new nav_msgs::Path{}}, m_seq_robot{},
+          m_seq_target{}, m_tracked_persons{new std::vector<Person>{}}
 {
     m_name = t_name;
 
@@ -76,7 +77,7 @@ void RobustPeopleFollower::runLoop()
         ros::spinOnce();
 
         // set the target's variables
-        for (auto& p : m_tracked_persons) {
+        for (auto& p : *m_tracked_persons) {
             if (p.target()) {
                 m_target = p;
                 break;
@@ -89,8 +90,7 @@ void RobustPeopleFollower::runLoop()
 
         // TODO: implement actual searching
         // robot loses target
-        if (m_target.distance() == 0 && m_target.distance() == 0 &&
-            m_robot.status() == Robot::Status::FOLLOWING) {
+        if (m_target.distance() == 0 && m_robot.status() == Robot::Status::FOLLOWING) {
             m_robot.status() = Robot::Status::LOS_LOST;
 
             // publish estimation markers
@@ -112,7 +112,7 @@ void RobustPeopleFollower::runLoop()
 
         // set old positions to calculate velocities
         m_robot.updateOldPose();
-        std::for_each(m_tracked_persons.begin(), m_tracked_persons.end(), [](Person& p) { p.updateOldPose(); });
+        std::for_each(m_tracked_persons->begin(), m_tracked_persons->end(), [](Person& p) { p.updateOldPose(); });
 
         // print out program information on the screen
         debugPrintout();
@@ -138,10 +138,10 @@ void RobustPeopleFollower::debugPrintout()
     ROS_INFO_STREAM("target information:");
     m_target.printVerboseInfo();
 
-    ROS_INFO_STREAM("goal list size: " << m_robot.waypoints().size());
+    ROS_INFO_STREAM("goal list size: " << m_robot.waypoints()->size());
 
-    ROS_INFO_STREAM("tracked persons: " << m_tracked_persons.size());
-    std::for_each(m_tracked_persons.begin(), m_tracked_persons.end(), [](const Person& p) { p.printInfo(); });
+    ROS_INFO_STREAM("tracked persons: " << m_tracked_persons->size());
+    std::for_each(m_tracked_persons->begin(), m_tracked_persons->end(), [](const Person& p) { p.printInfo(); });
 }
 
 
@@ -172,7 +172,7 @@ void RobustPeopleFollower::odometryCallback(const nav_msgs::Odometry::ConstPtr& 
     pose_stamped.pose.orientation.y = msg->pose.pose.orientation.y;
     pose_stamped.pose.orientation.z = msg->pose.pose.orientation.z;
     pose_stamped.pose.orientation.w = msg->pose.pose.orientation.w;
-    m_robot_path.poses.push_back(pose_stamped);
+    m_robot_path->poses.push_back(pose_stamped);
 
     m_robot.calculateAngle();
     m_robot.calculateVelocity(LOOP_FREQUENCY);
@@ -209,10 +209,10 @@ void RobustPeopleFollower::skeletonCallback(const body_tracker_msgs::Skeleton::C
 
 
     int id = skeleton.body_id;
-    auto p = std::find(m_tracked_persons.begin(), m_tracked_persons.end(), id);
+    auto p = std::find(m_tracked_persons->begin(), m_tracked_persons->end(), id);
 
     // person is already in the list
-    if (p != m_tracked_persons.end()) {
+    if (p != m_tracked_persons->end()) {
 
         // update information
         p->skeleton() = skeleton;
@@ -237,8 +237,7 @@ void RobustPeopleFollower::skeletonCallback(const body_tracker_msgs::Skeleton::C
                         p->target() = false;
                         m_target = Person{};
                         m_robot.status() = Robot::Status::WAITING;
-
-                        // reset gesture beginning time
+                        m_robot.waypoints()->clear();
                         p->gestureBegin() = ros::Time(0);
                     }
                 }
@@ -272,22 +271,22 @@ void RobustPeopleFollower::skeletonCallback(const body_tracker_msgs::Skeleton::C
 
         // add new person if skeleton id is not in list
     else
-        m_tracked_persons.emplace_back(Person{skeleton});
+        m_tracked_persons->emplace_back(Person{skeleton});
 }
 
 
 void RobustPeopleFollower::publishPaths()
 {
-    m_robot_path.header.seq = m_seq_robot;
-    m_robot_path.header.stamp = ros::Time::now();
-    m_robot_path.header.frame_id = "odom";
-    m_robot_path_pub.publish(m_robot_path);
+    m_robot_path->header.seq = m_seq_robot;
+    m_robot_path->header.stamp = ros::Time::now();
+    m_robot_path->header.frame_id = "odom";
+    m_robot_path_pub.publish(*m_robot_path);
     ++m_seq_robot;
 
-    m_target_path.header.seq = m_seq_target;
-    m_target_path.header.stamp = ros::Time::now();
-    m_target_path.header.frame_id = "odom";
-    m_target_path_pub.publish(m_target_path);
+    m_target_path->header.seq = m_seq_target;
+    m_target_path->header.stamp = ros::Time::now();
+    m_target_path->header.frame_id = "odom";
+    m_target_path_pub.publish(*m_target_path);
     ++m_seq_target;
 }
 
@@ -297,7 +296,7 @@ void RobustPeopleFollower::publishPersonMarkers() const
     std::vector<visualization_msgs::Marker> person_markers{}, person_vectors{};
 
     auto i{0};
-    for (auto& p : m_tracked_persons) {
+    for (auto& p : *m_tracked_persons) {
         if (p.distance() > 0) {
             visualization_msgs::Marker marker{};
             marker.header.frame_id = "odom";
@@ -371,6 +370,7 @@ void RobustPeopleFollower::publishWaypoints() const
 {
     visualization_msgs::Marker line_strip{}, line_list{};
     line_strip.header.frame_id = line_list.header.frame_id = "odom";
+    line_strip.ns = line_list.ns = "waypoints";
     line_strip.header.stamp = line_list.header.stamp = ros::Time::now();
     line_strip.action = line_list.action = visualization_msgs::Marker::ADD;
     line_strip.pose.orientation.w = line_list.pose.orientation.w = 1.0;
@@ -392,7 +392,7 @@ void RobustPeopleFollower::publishWaypoints() const
     line_list.color.r = 1.0;
     line_list.color.a = 1.0;
 
-    std::for_each(m_robot.waypoints().begin(), m_robot.waypoints().end(), [&](const geometry_msgs::PointStamped& w) {
+    std::for_each(m_robot.waypoints()->begin(), m_robot.waypoints()->end(), [&](const geometry_msgs::PointStamped& w) {
         geometry_msgs::Point p{};
         p.x = w.point.x;
         p.y = w.point.y;
@@ -411,10 +411,10 @@ void RobustPeopleFollower::publishWaypoints() const
 
 void RobustPeopleFollower::managePersonList()
 {
-    auto it = m_tracked_persons.begin();
-    while (it != m_tracked_persons.end()) {
+    auto it = m_tracked_persons->begin();
+    while (it != m_tracked_persons->end()) {
         if (it->distance() == 0 && it->yDeviation() == 0)
-            it = m_tracked_persons.erase(it);
+            it = m_tracked_persons->erase(it);
         else
             ++it;
     }
@@ -430,7 +430,7 @@ void RobustPeopleFollower::updateTargetPath()
         pose_stamped.header.frame_id = "odom";
         pose_stamped.pose.position.x = m_target.pose().position.x;
         pose_stamped.pose.position.y = m_target.pose().position.y;
-        m_target_path.poses.push_back(pose_stamped);
+        m_target_path->poses.push_back(pose_stamped);
     }
 }
 

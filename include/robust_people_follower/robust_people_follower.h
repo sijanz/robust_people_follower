@@ -91,13 +91,13 @@ private:
     Person m_target{};
 
     // list of persons in the frame
-    std::vector<Person> m_tracked_persons{};
+    std::unique_ptr<std::vector<Person>> m_tracked_persons{};
 
     // stores the path of the robot
-    nav_msgs::Path m_robot_path{};
+    std::unique_ptr<nav_msgs::Path> m_robot_path{};
 
     // stores the path of the target
-    nav_msgs::Path m_target_path{};
+    std::unique_ptr<nav_msgs::Path> m_target_path{};
 
     // sequence number for robot path
     uint32_t m_seq_robot{};

@@ -54,7 +54,7 @@ class Robot : public Object2DSpace
 {
 public:
 
-    enum Status
+    enum Status : unsigned char
     {
         WAITING = 0,
         FOLLOWING = 1,
@@ -62,8 +62,7 @@ public:
         SEARCHING = 3
     };
 
-    // implicit default constructor
-
+    Robot();
     void printInfo() const override;
 
     geometry_msgs::Twist velocityCommand(const Person& t_target, double FOLLOW_THRESHOLD);
@@ -76,11 +75,11 @@ public:
 
     // getters
     inline const Robot::Status status() const { return m_status; }
-    inline const std::deque<geometry_msgs::PointStamped>& waypoints() const { return m_waypoint_list; };
+    inline const std::shared_ptr<std::deque<geometry_msgs::PointStamped>> waypoints() const { return m_waypoint_list; };
 
 private:
-    Robot::Status m_status{Status::WAITING};
-    std::deque<geometry_msgs::PointStamped> m_waypoint_list{};
+    Status m_status{Status::WAITING};
+    std::shared_ptr<std::deque<geometry_msgs::PointStamped>> m_waypoint_list{};
     ros::Time m_last_waypoint_time{};
     double m_current_linear{};
     double m_current_angular{};
