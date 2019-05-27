@@ -65,6 +65,9 @@ void Robot::printInfo() const
     ROS_INFO("    x: %f", m_pose.position.x);
     ROS_INFO("    y: %f", m_pose.position.y);
     ROS_INFO("  theta: %f", m_angle_radian);
+
+    tf::Quaternion q{m_pose.orientation.x, m_pose.orientation.y, m_pose.orientation.z, m_pose.orientation.w};
+    ROS_INFO("  quaternion angle: %f", q.getAngle() * (180 / M_PI));
     ROS_INFO("  predicted target position:");
     ROS_INFO("    x: %f", m_estimated_target_position.x);
     ROS_INFO("    y: %f\n", m_estimated_target_position.y);
@@ -168,6 +171,10 @@ geometry_msgs::Twist Robot::velocityCommand(const Person& t_target, const double
         speed.linear.x = speed_linear;
     }
 
+        // waypoint list is empty
+    else
+        m_status = Status::SEARCHING;
+
     m_current_linear = speed.linear.x;
     m_current_angular = speed.angular.z;
 
@@ -196,10 +203,10 @@ void Robot::calculateVelocity(double t_frequency)
 
 // FIXME: doesn't work properly
 // TODO: test
-void Robot::estimateTargetPosition(const Person& t_target)
+void Robot::estimateTargetPosition(const Person& t_target, const double t_x, const double t_y)
 {
     auto distance{t_target.averageVelocity() * (ros::Time::now() - t_target.lastSeen()).toSec()};
 
-    m_estimated_target_position.x = t_target.pose().position.x + cos(t_target.averageAngle() * distance);
-    m_estimated_target_position.y = t_target.pose().position.y + sin(t_target.averageAngle() * distance);
+    m_estimated_target_position.x = t_x + cos(t_target.averageAngle()) * distance;
+    m_estimated_target_position.y = t_y + sin(t_target.averageAngle()) * distance;
 }

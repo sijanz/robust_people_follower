@@ -73,6 +73,10 @@ void RobustPeopleFollower::runLoop()
         visualization_msgs::Marker last_point_marker = lastPointMarker();
         visualization_msgs::Marker estimation_vector = targetEstimationVector();
 
+        geometry_msgs::Point32 last_target_point{};
+        last_target_point.x = m_target.oldPose().position.x;
+        last_target_point.y = m_target.oldPose().position.y;
+
         // process callbacks
         ros::spinOnce();
 
@@ -84,9 +88,34 @@ void RobustPeopleFollower::runLoop()
             }
         }
 
+        // robot loses target
+        if (m_target.distance() == 0 && m_robot.status() == Robot::Status::FOLLOWING)
+            m_robot.status() = Robot::Status::LOS_LOST;
+
+        // searching
         if (m_robot.status() == Robot::Status::LOS_LOST || m_robot.status() == Robot::Status::SEARCHING) {
-            m_robot.estimateTargetPosition(m_target);
+            m_robot.estimateTargetPosition(m_target, last_target_point.x, last_target_point.y);
+            m_visualization_pub.publish(last_point_marker);
             m_visualization_pub.publish(targetEstimationMarker());
+
+
+            // TODO: move to robot
+            auto min_distance{0.0};
+            if (!m_tracked_persons->empty()) {
+                min_distance = sqrt(
+                        pow((m_tracked_persons->at(0).pose().position.x - m_robot.estimatedTargetPosition().x), 2)
+                        + pow((m_tracked_persons->at(0).pose().position.y - m_robot.estimatedTargetPosition().y), 2));
+
+                std::for_each(m_tracked_persons->begin(), m_tracked_persons->end(), [this, &min_distance](Person& p) {
+                    if (sqrt(pow((p.pose().position.x - m_robot.estimatedTargetPosition().x), 2)
+                             + pow((p.pose().position.y - m_robot.estimatedTargetPosition().y), 2)) <
+                        min_distance) {
+                        p.target() = true;
+                        m_target = p;
+                        m_robot.status() = Robot::Status::FOLLOWING;
+                    }
+                });
+            }
         }
 
 
@@ -94,15 +123,6 @@ void RobustPeopleFollower::runLoop()
         if (m_target.distance() > FOLLOW_THRESHOLD)
             m_robot.addNewWaypoint(m_target, 4);
 
-        // TODO: implement actual searching
-        // robot loses target
-        if (m_target.distance() == 0 && m_robot.status() == Robot::Status::FOLLOWING) {
-            m_robot.status() = Robot::Status::LOS_LOST;
-
-            // publish estimation markers
-            m_visualization_pub.publish(last_point_marker);
-            m_visualization_pub.publish(estimation_vector);
-        }
 
         // update path for target to be published
         updateTargetPath();
@@ -449,9 +469,9 @@ visualization_msgs::Marker RobustPeopleFollower::lastPointMarker() const
     marker.ns = "last_seen";
     marker.type = visualization_msgs::Marker::MESH_RESOURCE;
     marker.action = visualization_msgs::Marker::ADD;
-    marker.lifetime = ros::Duration(20);
-    marker.pose.position.x = m_target.pose().position.x;
-    marker.pose.position.y = m_target.pose().position.y;
+    marker.lifetime = ros::Duration(0.3);
+    marker.pose.position.x = m_target.oldPose().position.x;
+    marker.pose.position.y = m_target.oldPose().position.y;
     marker.pose.orientation.w = 1.0;
     marker.scale.x = 1.0;
     marker.scale.y = 1.0;

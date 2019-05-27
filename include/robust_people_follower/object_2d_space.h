@@ -58,6 +58,7 @@ public:
 
     // getters
     inline const geometry_msgs::Pose& pose() const { return m_pose; }
+    inline const geometry_msgs::Pose& oldPose() const { return m_old_pose; }
     inline const double velocity() const { return m_velocity; }
     inline const double angle() const { return m_angle_radian; }
 

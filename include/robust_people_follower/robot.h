@@ -71,7 +71,7 @@ public:
     void calculateAngle() override;
     void calculateVelocity(double t_frequency) override;
     void addNewWaypoint(const Person& t_target, int t_times_per_second);
-    void estimateTargetPosition(const Person& t_target);
+    void estimateTargetPosition(const Person& t_target, double t_x, double t_y);
 
     // setters
     inline Robot::Status& status() { return m_status; }
