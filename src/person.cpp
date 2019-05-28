@@ -38,13 +38,14 @@
 
 Person::Person(const body_tracker_msgs::Skeleton& t_skeleton) :
         m_is_target{}, m_gesture_begin{}, m_skeleton{t_skeleton}, m_average_velocity{},
-        m_velocities{new std::vector<VelocityStamped>{}}, m_angles{new std::vector<QuaternionStamped>{}} {}
+        m_velocities{new std::vector<VelocityStamped>{}}, m_angles{new std::vector<AngleStamped>{}} {}
 
 
 void Person::printInfo() const
 {
-    ROS_INFO("id: %d, is target: %d, distance: %f, gestures: %d, height: %d",
-             m_skeleton.body_id, m_is_target, m_skeleton.centerOfMass.x, m_skeleton.gesture, correctHandHeight());
+    ROS_INFO("id: %d, is target: %d, distance: %f, gestures: %d, height: %d, mean angle: %f",
+             m_skeleton.body_id, m_is_target, m_skeleton.centerOfMass.x, m_skeleton.gesture, correctHandHeight(),
+             m_mean_angle);
 }
 
 
@@ -53,7 +54,7 @@ void Person::printVerboseInfo() const
     ROS_INFO("id: %d", m_skeleton.body_id);
     ROS_INFO("  velocity: %f", m_velocity);
     ROS_INFO("  average velocity: %f", m_average_velocity);
-    ROS_INFO("  average angle: %f", m_average_angle);
+    ROS_INFO("  average angle: %f", m_mean_angle);
     ROS_INFO("  position (relative)");
     ROS_INFO("    x: %f", m_skeleton.joint_position_spine_top.x);
     ROS_INFO("    y: %f", m_skeleton.joint_position_spine_top.y);
@@ -88,19 +89,23 @@ void Person::calculateAngle()
 
     auto it = m_angles->begin();
     while (it != m_angles->end()) {
-        if (ros::Time::now() - it->stamp > ros::Duration(2))
+        if (ros::Time::now() - it->stamp > ros::Duration{2})
             it = m_angles->erase(it);
         else
             ++it;
     }
 
-    m_angles->emplace_back(QuaternionStamped{m_angle_radian, ros::Time::now()});
+    m_angles->emplace_back(AngleStamped{m_angle_radian, ros::Time::now()});
 
-    QuaternionStamped sum{};
-    std::for_each(m_angles->begin(), m_angles->end(), [&sum](const QuaternionStamped& qs) { sum += qs; });
-    sum /= m_angles->size();
+    // https://en.wikipedia.org/wiki/Mean_of_circular_quantities
+    auto sum_sin{0.0};
+    auto sum_cos{0.0};
+    for (const AngleStamped& as : *m_angles) {
+        sum_sin += sin(as.angle);
+        sum_cos += cos(as.angle);
+    }
 
-    m_average_angle = sum.quaternion.getAngle();
+    m_mean_angle = atan2(((1.0 / m_angles->size()) * sum_sin), ((1.0 / m_angles->size()) * sum_cos));
 }
 
 
@@ -111,7 +116,7 @@ void Person::calculateVelocity(double t_frequency)
 
     auto it = m_velocities->begin();
     while (it != m_velocities->end()) {
-        if (ros::Time::now() - it->stamp > ros::Duration(2))
+        if (ros::Time::now() - it->stamp > ros::Duration{2})
             it = m_velocities->erase(it);
         else
             ++it;

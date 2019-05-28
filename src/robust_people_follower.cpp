@@ -70,8 +70,8 @@ void RobustPeopleFollower::runLoop()
     while (ros::ok()) {
 
         // create markers to be published if the target is lost
-        visualization_msgs::Marker last_point_marker = lastPointMarker();
-        visualization_msgs::Marker estimation_vector = targetEstimationVector();
+        auto last_point_marker{lastPointMarker()};
+        auto estimation_vector{targetEstimationVector()};
 
         geometry_msgs::Point32 last_target_point{};
         last_target_point.x = m_target.oldPose().position.x;
@@ -98,15 +98,13 @@ void RobustPeopleFollower::runLoop()
             m_visualization_pub.publish(last_point_marker);
             m_visualization_pub.publish(targetEstimationMarker());
 
-
-            // TODO: move to robot
             auto min_distance{0.0};
             if (!m_tracked_persons->empty()) {
                 min_distance = sqrt(
                         pow((m_tracked_persons->at(0).pose().position.x - m_robot.estimatedTargetPosition().x), 2)
                         + pow((m_tracked_persons->at(0).pose().position.y - m_robot.estimatedTargetPosition().y), 2));
 
-                std::for_each(m_tracked_persons->begin(), m_tracked_persons->end(), [this, &min_distance](Person& p) {
+                for (Person& p : *m_tracked_persons) {
                     if (sqrt(pow((p.pose().position.x - m_robot.estimatedTargetPosition().x), 2)
                              + pow((p.pose().position.y - m_robot.estimatedTargetPosition().y), 2)) <
                         min_distance) {
@@ -114,7 +112,7 @@ void RobustPeopleFollower::runLoop()
                         m_target = p;
                         m_robot.status() = Robot::Status::FOLLOWING;
                     }
-                });
+                }
             }
         }
 
@@ -234,8 +232,8 @@ void RobustPeopleFollower::skeletonCallback(const body_tracker_msgs::Skeleton::C
     skeleton.joint_position_right_hand = msg->joint_position_right_hand;
 
 
-    int id = skeleton.body_id;
-    auto p = std::find(m_tracked_persons->begin(), m_tracked_persons->end(), id);
+    auto id{skeleton.body_id};
+    auto p{std::find(m_tracked_persons->begin(), m_tracked_persons->end(), id)};
 
     // person is already in the list
     if (p != m_tracked_persons->end()) {
@@ -496,7 +494,7 @@ visualization_msgs::Marker RobustPeopleFollower::targetEstimationVector() const
     vector.pose.position.x = m_target.pose().position.x;
     vector.pose.position.y = m_target.pose().position.y;
     vector.pose.position.z = 1.3;
-    tf::Quaternion q = tf::createQuaternionFromYaw(m_target.averageAngle());
+    tf::Quaternion q = tf::createQuaternionFromYaw(m_target.meanAngle());
     vector.pose.orientation.x = q.getX();
     vector.pose.orientation.y = q.getY();
     vector.pose.orientation.z = q.getZ();

@@ -74,7 +74,7 @@ public:
     inline const double distance() const { return m_skeleton.centerOfMass.x; }
     inline const double yDeviation() const { return m_skeleton.centerOfMass.y; }
     inline const double averageVelocity() const { return m_average_velocity; }
-    inline const double averageAngle() const { return m_average_angle; }
+    inline const double meanAngle() const { return m_mean_angle; }
     inline const ros::Time lastSeen() const { return m_velocities->at(m_velocities->size() - 1).stamp; }
 
     void printVerboseInfo() const;
@@ -87,9 +87,9 @@ private:
     body_tracker_msgs::Skeleton m_skeleton{};
     ros::Time m_gesture_begin{};
     double m_average_velocity{};
-    double m_average_angle{};
+    double m_mean_angle{};
     std::shared_ptr<std::vector<VelocityStamped>> m_velocities;
-    std::shared_ptr<std::vector<QuaternionStamped>> m_angles;
+    std::shared_ptr<std::vector<AngleStamped>> m_angles;
 };
 
 

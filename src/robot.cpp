@@ -144,7 +144,7 @@ geometry_msgs::Twist Robot::velocityCommand(const Person& t_target, const double
         auto speed_linear{0.3};
 
         if (m_status == Status::FOLLOWING) {
-            auto n = -(0.32 * ((FOLLOW_THRESHOLD / 1000) - 0.2));
+            auto n{-(0.32 * ((FOLLOW_THRESHOLD / 1000) - 0.2))};
             speed_linear = 0.32 * (distance_to_target / 1000) + n;
 
             // maximum of 0.6 m/s linear velocity
@@ -160,8 +160,6 @@ geometry_msgs::Twist Robot::velocityCommand(const Person& t_target, const double
             speed.angular.z = m_current_angular - (m_current_angular / 100) * 40;
 
             m_waypoint_list->pop_front();
-
-            // FIXME: buggy, robots tends to drive in circles
 
         } else if (angle_to_goal - m_angle_radian > 0.0)
             speed.angular.z = 1 * (angle_to_goal - m_angle_radian);
@@ -207,6 +205,6 @@ void Robot::estimateTargetPosition(const Person& t_target, const double t_x, con
 {
     auto distance{t_target.averageVelocity() * (ros::Time::now() - t_target.lastSeen()).toSec()};
 
-    m_estimated_target_position.x = t_x + cos(t_target.averageAngle()) * distance;
-    m_estimated_target_position.y = t_y + sin(t_target.averageAngle()) * distance;
+    m_estimated_target_position.x = t_x + cos(t_target.meanAngle()) * distance;
+    m_estimated_target_position.y = t_y + sin(t_target.meanAngle()) * distance;
 }

@@ -29,29 +29,16 @@ struct VelocityStamped
 };
 
 
-struct QuaternionStamped
+struct AngleStamped
 {
-    tf::Quaternion quaternion{};
+    double angle{};
     ros::Time stamp{};
 
-    inline QuaternionStamped() = default;
-    inline QuaternionStamped(double t_yaw, const ros::Time& t_stamp) :
-            quaternion{}, stamp(t_stamp) { quaternion.setEuler(t_yaw, 0.0, 0.0); }
-    inline QuaternionStamped& operator=(const QuaternionStamped& rhs) = default;
-    inline QuaternionStamped& operator+(const QuaternionStamped& rhs) { quaternion += rhs.quaternion; }
+    AngleStamped(const double t_angle, const ros::Time& t_stamp) : angle{t_angle}, stamp{t_stamp} {}
 
-    inline QuaternionStamped& operator+=(const QuaternionStamped& rhs)
+    friend inline double operator+=(double& lhs, const AngleStamped& rhs)
     {
-        quaternion += rhs.quaternion;
-        return *this;
-    }
-
-    friend inline QuaternionStamped& operator/=(QuaternionStamped& lhs, const size_t t_size)
-    {
-        lhs.quaternion.setX(lhs.quaternion.x() / t_size);
-        lhs.quaternion.setY(lhs.quaternion.y() / t_size);
-        lhs.quaternion.setZ(lhs.quaternion.z() / t_size);
-        lhs.quaternion.setW(lhs.quaternion.w() / t_size);
+        lhs += rhs.angle;
         return lhs;
     }
 };
