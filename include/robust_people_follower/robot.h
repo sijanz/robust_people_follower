@@ -55,6 +55,7 @@ class Robot : public Object2DSpace
 {
 public:
 
+    // enumeration to represent the status of the robot
     enum Status : unsigned char
     {
         WAITING = 0,
@@ -63,15 +64,13 @@ public:
         SEARCHING = 3
     };
 
+    // special methods
     Robot();
-    void printInfo() const override;
 
-    geometry_msgs::Twist velocityCommand(const Person& t_target, double FOLLOW_THRESHOLD);
-
+    // inherited methods
     void calculateAngle() override;
     void calculateVelocity(double t_frequency) override;
-    void addNewWaypoint(const Person& t_target, int t_times_per_second);
-    void estimateTargetPosition(const Person& t_target, double t_x, double t_y);
+    void printInfo() const override;
 
     // setters
     inline Robot::Status& status() { return m_status; }
@@ -80,6 +79,10 @@ public:
     inline const Robot::Status status() const { return m_status; }
     inline const std::shared_ptr<std::deque<geometry_msgs::PointStamped>> waypoints() const { return m_waypoint_list; }
     inline const geometry_msgs::Point32 estimatedTargetPosition() const { return m_estimated_target_position; }
+
+    void addNewWaypoint(const Person& t_target, int t_times_per_second);
+    void estimateTargetPosition(const Person& t_target, double t_x, double t_y);
+    geometry_msgs::Twist velocityCommand(const Person& t_target, double FOLLOW_THRESHOLD);
 
 private:
     Status m_status{Status::WAITING};

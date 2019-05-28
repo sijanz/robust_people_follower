@@ -88,16 +88,20 @@ void RobustPeopleFollower::runLoop()
             }
         }
 
-        // robot loses target
+        // set status to "LOS_LOST" if target is lost
         if (m_target.distance() == 0 && m_robot.status() == Robot::Status::FOLLOWING)
             m_robot.status() = Robot::Status::LOS_LOST;
 
-        // searching
+        // estimate the target's position if the line of sight to the target is lost
         if (m_robot.status() == Robot::Status::LOS_LOST || m_robot.status() == Robot::Status::SEARCHING) {
             m_robot.estimateTargetPosition(m_target, last_target_point.x, last_target_point.y);
             m_visualization_pub.publish(last_point_marker);
             m_visualization_pub.publish(targetEstimationMarker());
+        }
 
+        // FIXME: not working correctly
+        // re-identify the target if the robot is at the target's last known position
+        if (m_robot.status() == Robot::Status::SEARCHING) {
             auto min_distance{0.0};
             if (!m_tracked_persons->empty()) {
                 min_distance = sqrt(
@@ -108,6 +112,8 @@ void RobustPeopleFollower::runLoop()
                     if (sqrt(pow((p.pose().position.x - m_robot.estimatedTargetPosition().x), 2)
                              + pow((p.pose().position.y - m_robot.estimatedTargetPosition().y), 2)) <
                         min_distance) {
+                        min_distance = sqrt(pow((p.pose().position.x - m_robot.estimatedTargetPosition().x), 2)
+                                            + pow((p.pose().position.y - m_robot.estimatedTargetPosition().y), 2));
                         p.target() = true;
                         m_target = p;
                         m_robot.status() = Robot::Status::FOLLOWING;

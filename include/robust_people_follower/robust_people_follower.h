@@ -52,11 +52,16 @@
 class RobustPeopleFollower
 {
 public:
+
+    // special methods
     explicit RobustPeopleFollower(const std::string& t_name);
     ~RobustPeopleFollower();
-    void runLoop();
+
+    // callback functions
     void odometryCallback(const nav_msgs::Odometry::ConstPtr& msg);
     void skeletonCallback(const body_tracker_msgs::Skeleton::ConstPtr& msg);
+
+    void runLoop();
 
 private:
 

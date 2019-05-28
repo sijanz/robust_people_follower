@@ -7,13 +7,16 @@
 
 struct VelocityStamped
 {
+    // member variables
     double velocity{};
     ros::Time stamp{};
 
+    // constructors
     inline VelocityStamped() = default;
     inline VelocityStamped(double t_velocity, const ros::Time& t_stamp) : velocity(t_velocity), stamp(t_stamp) {}
+
+    // overloaded operators
     inline VelocityStamped& operator=(const VelocityStamped& rhs) = default;
-    inline VelocityStamped& operator+(const VelocityStamped& rhs) { velocity += rhs.velocity; }
 
     inline VelocityStamped& operator+=(const VelocityStamped& rhs)
     {
@@ -21,21 +24,24 @@ struct VelocityStamped
         return *this;
     }
 
-    friend inline VelocityStamped& operator/=(VelocityStamped& lhs, const size_t t_size)
+    inline VelocityStamped& operator/=(const size_t t_size)
     {
-        lhs.velocity /= t_size;
-        return lhs;
+        velocity /= t_size;
+        return *this;
     }
 };
 
 
 struct AngleStamped
 {
+    // member variables
     double angle{};
     ros::Time stamp{};
 
+    // constructors
     AngleStamped(const double t_angle, const ros::Time& t_stamp) : angle{t_angle}, stamp{t_stamp} {}
 
+    // overloaded operators
     friend inline double operator+=(double& lhs, const AngleStamped& rhs)
     {
         lhs += rhs.angle;
