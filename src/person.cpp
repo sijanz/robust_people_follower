@@ -43,9 +43,8 @@ Person::Person(const body_tracker_msgs::Skeleton& t_skeleton) :
 
 void Person::printInfo() const
 {
-    ROS_INFO("id: %d, is target: %d, distance: %f, gestures: %d, height: %d, mean angle: %f",
-             m_skeleton.body_id, m_is_target, m_skeleton.centerOfMass.x, m_skeleton.gesture, correctHandHeight(),
-             m_mean_angle);
+    ROS_INFO("id: %d, is target: %d, distance: %f, gestures: %d",
+             m_skeleton.body_id, m_is_target, m_skeleton.centerOfMass.x, m_skeleton.gesture);
 }
 
 
@@ -67,6 +66,7 @@ void Person::printVerboseInfo() const
 }
 
 
+// TODO: change to matrices
 void Person::calculateAbsolutePosition(const double t_robot_x, const double t_robot_y, const double t_robot_angle)
 {
     m_pose.position.x = t_robot_x + (cos(t_robot_angle) * (m_skeleton.centerOfMass.x / 1000) -

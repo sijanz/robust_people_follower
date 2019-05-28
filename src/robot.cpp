@@ -65,9 +65,6 @@ void Robot::printInfo() const
     ROS_INFO("    x: %f", m_pose.position.x);
     ROS_INFO("    y: %f", m_pose.position.y);
     ROS_INFO("  theta: %f", m_angle_radian);
-
-    tf::Quaternion q{m_pose.orientation.x, m_pose.orientation.y, m_pose.orientation.z, m_pose.orientation.w};
-    ROS_INFO("  quaternion angle: %f", q.getAngle() * (180 / M_PI));
     ROS_INFO("  predicted target position:");
     ROS_INFO("    x: %f", m_estimated_target_position.x);
     ROS_INFO("    y: %f\n", m_estimated_target_position.y);
@@ -134,10 +131,15 @@ geometry_msgs::Twist Robot::velocityCommand(const Person& t_target, const double
 
         auto current_goal{m_waypoint_list->at(0)};
 
-        auto inc_x{current_goal.point.x - m_pose.position.x};
-        auto inc_y{current_goal.point.y - m_pose.position.y};
+        tf::Matrix3x3 rotation{};
+        rotation.setValue(cos(m_angle_radian), -sin(m_angle_radian), m_pose.position.x,
+                          sin(m_angle_radian), cos(m_angle_radian), m_pose.position.y,
+                          0.0, 0.0, 1.0);
+        tf::Vector3 global_vector{current_goal.point.x, current_goal.point.y, 1.0};
 
-        auto angle_to_goal{atan2(inc_y, inc_x)};
+        auto local_vector{rotation.inverse() * global_vector};
+        auto local_angle_to_goal{atan2(local_vector.y(), local_vector.x())};
+
         auto distance_to_goal{sqrt(pow(current_goal.point.x - m_pose.position.x, 2) +
                                    pow(current_goal.point.y - m_pose.position.y, 2))};
 
@@ -161,10 +163,10 @@ geometry_msgs::Twist Robot::velocityCommand(const Person& t_target, const double
 
             m_waypoint_list->pop_front();
 
-        } else if (angle_to_goal - m_angle_radian > 0.0)
-            speed.angular.z = 1 * (angle_to_goal - m_angle_radian);
-        else if (angle_to_goal - m_angle_radian < -0.0)
-            speed.angular.z = -1 * std::abs(angle_to_goal - m_angle_radian);
+        } else if (local_angle_to_goal > 0.0)
+            speed.angular.z = 1.0 * local_angle_to_goal;
+        else if (local_angle_to_goal < -0.0)
+            speed.angular.z = -1.0 * std::abs(local_angle_to_goal);
 
         speed.linear.x = speed_linear;
     }
@@ -199,8 +201,6 @@ void Robot::calculateVelocity(double t_frequency)
 }
 
 
-// FIXME: doesn't work properly
-// TODO: test
 void Robot::estimateTargetPosition(const Person& t_target, const double t_x, const double t_y)
 {
     auto distance{t_target.averageVelocity() * (ros::Time::now() - t_target.lastSeen()).toSec()};
