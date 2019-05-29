@@ -62,7 +62,7 @@ public:
     inline const double velocity() const { return m_velocity; }
     inline const double angle() const { return m_angle_radian; }
 
-    inline void updateOldPose() { m_old_pose = m_pose; }
+    inline void updatePose() { m_old_pose = m_pose; }
 
 protected:
     geometry_msgs::Pose m_pose{};

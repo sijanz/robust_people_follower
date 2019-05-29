@@ -101,9 +101,8 @@ void RobustPeopleFollower::runLoop()
 
         // FIXME: not working correctly
         // re-identify the target if the robot is at the target's last known position
-        if (m_robot.status() == Robot::Status::SEARCHING) {
+        if (m_robot.status() == Robot::Status::SEARCHING)
             m_robot.reIdentify();
-        }
 
 
         // add new goal to goal list
@@ -124,10 +123,9 @@ void RobustPeopleFollower::runLoop()
         publishWaypoints();
 
         // set old positions to calculate velocities
-        m_robot.updateOldPose();
-        for (auto& p : *m_robot.trackedPersons()) {
-            p.updateOldPose();
-        }
+        m_robot.updatePose();
+        for (auto& p : *m_robot.trackedPersons())
+            p.updatePose();
 
         // print out program information on the screen
         debugPrintout();
@@ -157,9 +155,8 @@ void RobustPeopleFollower::debugPrintout()
     ROS_INFO_STREAM("goal list size: " << m_robot.waypoints()->size());
 
     ROS_INFO_STREAM("tracked persons: " << m_robot.trackedPersons()->size());
-    for (const auto& p : *m_robot.trackedPersons()) {
+    for (const auto& p : *m_robot.trackedPersons())
         p.printInfo();
-    }
 }
 
 
@@ -267,9 +264,8 @@ void RobustPeopleFollower::skeletonCallback(const body_tracker_msgs::Skeleton::C
 
             // check for gestures
             if (skeleton.gesture == 2 && p->correctHandHeight()) {
-                if (p->gestureBegin() == ros::Time(0)) {
+                if (p->gestureBegin() == ros::Time(0))
                     p->gestureBegin() = ros::Time::now();
-                }
             } else {
                 if (p->gestureBegin() != ros::Time(0)) {
 
@@ -377,10 +373,10 @@ void RobustPeopleFollower::publishPersonMarkers() const
         }
     }
 
-    std::for_each(person_markers.begin(), person_markers.end(),
-                  [this](const visualization_msgs::Marker& m) { m_visualization_pub.publish(m); });
-    std::for_each(person_vectors.begin(), person_vectors.end(),
-                  [this](const visualization_msgs::Marker& m) { m_visualization_pub.publish(m); });
+    for (const auto& m : person_markers)
+        m_visualization_pub.publish(m);
+    for (const auto& m : person_vectors)
+        m_visualization_pub.publish(m);
 }
 
 
@@ -410,7 +406,7 @@ void RobustPeopleFollower::publishWaypoints() const
     line_list.color.r = 1.0;
     line_list.color.a = 1.0;
 
-    std::for_each(m_robot.waypoints()->begin(), m_robot.waypoints()->end(), [&](const geometry_msgs::PointStamped& w) {
+    for (const auto& w : *m_robot.waypoints()) {
         geometry_msgs::Point p{};
         p.x = w.point.x;
         p.y = w.point.y;
@@ -419,7 +415,7 @@ void RobustPeopleFollower::publishWaypoints() const
         line_list.points.push_back(p);
         p.z += 1.0;
         line_list.points.push_back(p);
-    });
+    }
 
     // publish markers
     m_visualization_pub.publish(line_strip);

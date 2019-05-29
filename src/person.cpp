@@ -33,6 +33,8 @@
 *********************************************************************/
 
 
+#include <tf/transform_datatypes.h>
+
 #include "robust_people_follower/person.h"
 
 
@@ -66,13 +68,25 @@ void Person::printVerboseInfo() const
 }
 
 
-// TODO: change to matrices
 void Person::calculateAbsolutePosition(const double t_robot_x, const double t_robot_y, const double t_robot_angle)
 {
+    /*
     m_pose.position.x = t_robot_x + (cos(t_robot_angle) * (m_skeleton.centerOfMass.x / 1000) -
                                      sin(t_robot_angle) * (m_skeleton.centerOfMass.y / 1000));
     m_pose.position.y = t_robot_y + (sin(t_robot_angle) * (m_skeleton.centerOfMass.x / 1000) +
                                      cos(t_robot_angle) * (m_skeleton.centerOfMass.y / 1000));
+                                     */
+
+    tf::Matrix3x3 rotation{};
+    rotation.setValue(cos(t_robot_angle), -sin(t_robot_angle), t_robot_x,
+                      sin(t_robot_angle), cos(t_robot_angle), t_robot_y,
+                      0.0, 0.0, 1.0);
+
+    tf::Vector3 local_vector{(m_skeleton.centerOfMass.x / 1000), (m_skeleton.centerOfMass.y / 1000), 1.0};
+    auto global_vector{rotation * local_vector};
+
+    m_pose.position.x = global_vector.x();
+    m_pose.position.y = global_vector.y();
 }
 
 
