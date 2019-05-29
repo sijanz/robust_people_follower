@@ -40,7 +40,8 @@
 
 Robot::Robot() :
         m_status{Status::WAITING}, m_waypoint_list{new std::deque<geometry_msgs::PointStamped>{}},
-        m_last_waypoint_time{}, m_current_linear{}, m_current_angular{}, m_estimated_target_position{} {}
+        m_last_waypoint_time{}, m_estimated_target_position{},
+        m_tracked_persons{new std::vector<Person>} {}
 
 
 void Robot::printInfo() const
@@ -71,7 +72,7 @@ void Robot::printInfo() const
 }
 
 
-void Robot::addNewWaypoint(const Person& t_target, int t_times_per_second)
+void Robot::addNewWaypoint(int t_times_per_second)
 {
     if (m_waypoint_list->size() > 100)
         m_waypoint_list->pop_front();
@@ -79,8 +80,8 @@ void Robot::addNewWaypoint(const Person& t_target, int t_times_per_second)
     if (ros::Time::now() - m_last_waypoint_time > ros::Duration(0, (1000000000 / t_times_per_second))) {
         geometry_msgs::PointStamped position{};
         position.header.stamp = ros::Time::now();
-        position.point.x = t_target.pose().position.x;
-        position.point.y = t_target.pose().position.y;
+        position.point.x = m_target.pose().position.x;
+        position.point.y = m_target.pose().position.y;
 
         m_last_waypoint_time = ros::Time::now();
         m_waypoint_list->emplace_back(position);
@@ -88,9 +89,9 @@ void Robot::addNewWaypoint(const Person& t_target, int t_times_per_second)
 }
 
 
-geometry_msgs::Twist Robot::velocityCommand(const Person& t_target, const double FOLLOW_THRESHOLD)
+geometry_msgs::Twist Robot::velocityCommand(const double FOLLOW_THRESHOLD)
 {
-    auto distance_to_target{t_target.distance()};
+    auto distance_to_target{m_target.distance()};
 
     // FIXME: ugly, only temporary fix
     if (distance_to_target == 0)
@@ -109,20 +110,20 @@ geometry_msgs::Twist Robot::velocityCommand(const Person& t_target, const double
 
         speed.linear.x = 2 * (distance_to_target / 1000) - 2;
 
-        if (t_target.yDeviation() < -50) {
-            speed.angular.z = -0.0025 * std::abs(t_target.yDeviation());
-        } else if (t_target.yDeviation() > 50) {
-            speed.angular.z = 0.0025 * t_target.yDeviation();
+        if (m_target.yDeviation() < -50) {
+            speed.angular.z = -0.0025 * std::abs(m_target.yDeviation());
+        } else if (m_target.yDeviation() > 50) {
+            speed.angular.z = 0.0025 * m_target.yDeviation();
         } else
             speed.angular.z = 0;
 
         // target is under threshold, only keep him centered
     } else if (distance_to_target > 1000 && distance_to_target < FOLLOW_THRESHOLD) {
 
-        if (t_target.yDeviation() < -50) {
-            speed.angular.z = -0.0025 * std::abs(t_target.yDeviation());
-        } else if (t_target.yDeviation() > 50) {
-            speed.angular.z = 0.0025 * t_target.yDeviation();
+        if (m_target.yDeviation() < -50) {
+            speed.angular.z = -0.0025 * std::abs(m_target.yDeviation());
+        } else if (m_target.yDeviation() > 50) {
+            speed.angular.z = 0.0025 * m_target.yDeviation();
         } else
             speed.angular.z = 0;
 
@@ -158,8 +159,8 @@ geometry_msgs::Twist Robot::velocityCommand(const Person& t_target, const double
         if (distance_to_goal < 0.3) {
 
             // input less acceleration
-            speed.linear.x = m_current_linear - (m_current_linear / 100) * 40;
-            speed.angular.z = m_current_angular - (m_current_angular / 100) * 40;
+            speed.linear.x = 0.6 * m_current_linear;
+            speed.angular.z = 0.6 * m_current_angular;
 
             m_waypoint_list->pop_front();
 
@@ -201,10 +202,45 @@ void Robot::calculateVelocity(double t_frequency)
 }
 
 
-void Robot::estimateTargetPosition(const Person& t_target, const double t_x, const double t_y)
+void Robot::estimateTargetPosition(const double t_x, const double t_y)
 {
-    auto distance{t_target.averageVelocity() * (ros::Time::now() - t_target.lastSeen()).toSec()};
+    auto distance{m_target.averageVelocity() * (ros::Time::now() - m_target.lastSeen()).toSec()};
 
-    m_estimated_target_position.x = t_x + cos(t_target.meanAngle()) * distance;
-    m_estimated_target_position.y = t_y + sin(t_target.meanAngle()) * distance;
+    m_estimated_target_position.x = t_x + cos(m_target.meanAngle()) * distance;
+    m_estimated_target_position.y = t_y + sin(m_target.meanAngle()) * distance;
+}
+
+
+void Robot::reIdentify()
+{
+    auto min_distance{0.0};
+    if (!m_tracked_persons->empty()) {
+        min_distance = sqrt(
+                pow((m_tracked_persons->at(0).pose().position.x - m_estimated_target_position.x), 2)
+                + pow((m_tracked_persons->at(0).pose().position.y - m_estimated_target_position.y), 2));
+
+        for (Person& p : *m_tracked_persons) {
+            if (sqrt(pow((p.pose().position.x - m_estimated_target_position.x), 2)
+                     + pow((p.pose().position.y - m_estimated_target_position.y), 2)) <
+                min_distance) {
+                min_distance = sqrt(pow((p.pose().position.x - m_estimated_target_position.x), 2)
+                                    + pow((p.pose().position.y - m_estimated_target_position.y), 2));
+                p.target() = true;
+                m_target = p;
+                m_status = Robot::Status::FOLLOWING;
+            }
+        }
+    }
+}
+
+
+void Robot::managePersonList()
+{
+    auto it = m_tracked_persons->begin();
+    while (it != m_tracked_persons->end()) {
+        if (it->distance() == 0 && it->yDeviation() == 0)
+            it = m_tracked_persons->erase(it);
+        else
+            ++it;
+    }
 }

@@ -74,15 +74,21 @@ public:
 
     // setters
     inline Robot::Status& status() { return m_status; }
+    inline Person& target() { return m_target; }
+    inline std::shared_ptr<std::vector<Person>> trackedPersons() { return m_tracked_persons; }
 
     // getters
     inline const Robot::Status status() const { return m_status; }
     inline const std::shared_ptr<std::deque<geometry_msgs::PointStamped>> waypoints() const { return m_waypoint_list; }
     inline const geometry_msgs::Point32 estimatedTargetPosition() const { return m_estimated_target_position; }
+    inline const Person& target() const { return m_target; }
+    inline const std::shared_ptr<std::vector<Person>> trackedPersons() const { return m_tracked_persons; }
 
-    void addNewWaypoint(const Person& t_target, int t_times_per_second);
-    void estimateTargetPosition(const Person& t_target, double t_x, double t_y);
-    geometry_msgs::Twist velocityCommand(const Person& t_target, double FOLLOW_THRESHOLD);
+    void addNewWaypoint(int t_times_per_second);
+    void estimateTargetPosition(double t_x, double t_y);
+    geometry_msgs::Twist velocityCommand(double FOLLOW_THRESHOLD);
+    void reIdentify();
+    void managePersonList();
 
 private:
     Status m_status{Status::WAITING};
@@ -91,6 +97,12 @@ private:
     double m_current_linear{};
     double m_current_angular{};
     geometry_msgs::Point32 m_estimated_target_position{};
+
+    // instance of the target to follow
+    Person m_target{};
+
+    // list of persons in the frame
+    std::shared_ptr<std::vector<Person>> m_tracked_persons{};
 };
 
 

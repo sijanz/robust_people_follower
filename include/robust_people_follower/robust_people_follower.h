@@ -92,12 +92,6 @@ private:
     // instance of the turtlebot robot
     Robot m_robot{};
 
-    // instance of the target to follow
-    Person m_target{};
-
-    // list of persons in the frame
-    std::unique_ptr<std::vector<Person>> m_tracked_persons{};
-
     // stores the path of the robot
     std::unique_ptr<nav_msgs::Path> m_robot_path{};
 
@@ -115,7 +109,6 @@ private:
     void publishPaths();
     void publishPersonMarkers() const;
     void publishWaypoints() const;
-    void managePersonList();
     void updateTargetPath();
     visualization_msgs::Marker lastPointMarker() const;
     visualization_msgs::Marker targetEstimationVector() const;
