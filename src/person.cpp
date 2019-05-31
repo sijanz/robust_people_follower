@@ -38,9 +38,9 @@
 #include "robust_people_follower/person.h"
 
 
-Person::Person(const body_tracker_msgs::Skeleton& t_skeleton) :
-        m_is_target{}, m_gesture_begin{}, m_skeleton{t_skeleton}, m_average_velocity{},
-        m_velocities{new std::vector<VelocityStamped>{}}, m_angles{new std::vector<AngleStamped>{}} {}
+Person::Person(const body_tracker_msgs::Skeleton& t_skeleton)
+        : m_is_target{}, m_gesture_begin{}, m_skeleton{t_skeleton}, m_mean_velocity{},
+          m_velocities{new std::vector<VelocityStamped>{}}, m_angles{new std::vector<AngleStamped>{}} {}
 
 
 void Person::printInfo() const
@@ -52,35 +52,23 @@ void Person::printInfo() const
 
 void Person::printVerboseInfo() const
 {
-    ROS_INFO("id: %d", m_skeleton.body_id);
-    ROS_INFO("  velocity: %f", m_velocity);
-    ROS_INFO("  average velocity: %f", m_average_velocity);
-    ROS_INFO("  average angle: %f", m_mean_angle);
-    ROS_INFO("  position (relative)");
-    ROS_INFO("    x: %f", m_skeleton.joint_position_spine_top.x);
-    ROS_INFO("    y: %f", m_skeleton.joint_position_spine_top.y);
-    ROS_INFO("  position (absolute):");
-    ROS_INFO("    x: %f", m_pose.position.x);
-    ROS_INFO("    y: %f", m_pose.position.y);
-    ROS_INFO("  theta: %f", m_angle_radian);
-    ROS_INFO("  distance: %f", m_skeleton.centerOfMass.x);
-    ROS_INFO("  y-deviation of center of mass: %f\n", m_skeleton.centerOfMass.y);
+    ROS_INFO_STREAM("id : " << m_skeleton.body_id);
+    ROS_INFO_STREAM("  velocity: " << m_velocity);
+    ROS_INFO_STREAM("  mean velocity: " << m_mean_velocity);
+    ROS_INFO_STREAM("  mean angle: " << m_mean_angle);
+    ROS_INFO_STREAM("  theta: " << m_angle);
+    ROS_INFO_STREAM("  distance: " << m_skeleton.centerOfMass.x);
+    ROS_INFO_STREAM("  delta-y: " << m_skeleton.centerOfMass.y << "\n");
 }
 
 
 void Person::calculateAbsolutePosition(const double t_robot_x, const double t_robot_y, const double t_robot_angle)
 {
-    /*
-    m_pose.position.x = t_robot_x + (cos(t_robot_angle) * (m_skeleton.centerOfMass.x / 1000) -
-                                     sin(t_robot_angle) * (m_skeleton.centerOfMass.y / 1000));
-    m_pose.position.y = t_robot_y + (sin(t_robot_angle) * (m_skeleton.centerOfMass.x / 1000) +
-                                     cos(t_robot_angle) * (m_skeleton.centerOfMass.y / 1000));
-                                     */
-
-    tf::Matrix3x3 rotation{};
-    rotation.setValue(cos(t_robot_angle), -sin(t_robot_angle), t_robot_x,
-                      sin(t_robot_angle), cos(t_robot_angle), t_robot_y,
-                      0.0, 0.0, 1.0);
+    tf::Matrix3x3 rotation{
+            cos(t_robot_angle), -sin(t_robot_angle), t_robot_x,
+            sin(t_robot_angle), cos(t_robot_angle), t_robot_y,
+            0.0, 0.0, 1.0
+    };
 
     tf::Vector3 local_vector{(m_skeleton.centerOfMass.x / 1000), (m_skeleton.centerOfMass.y / 1000), 1.0};
     auto global_vector{rotation * local_vector};
@@ -98,8 +86,8 @@ bool Person::correctHandHeight() const
 
 void Person::calculateAngle()
 {
-    m_angle_radian = std::atan2((m_pose.position.y - m_old_pose.position.y),
-                                (m_pose.position.x - m_old_pose.position.x));
+    m_angle = std::atan2((m_pose.position.y - m_old_pose.position.y),
+                         (m_pose.position.x - m_old_pose.position.x));
 
     auto it = m_angles->begin();
     while (it != m_angles->end()) {
@@ -109,12 +97,12 @@ void Person::calculateAngle()
             ++it;
     }
 
-    m_angles->emplace_back(AngleStamped{m_angle_radian, ros::Time::now()});
+    m_angles->emplace_back(AngleStamped{m_angle, ros::Time::now()});
 
     // https://en.wikipedia.org/wiki/Mean_of_circular_quantities
     auto sum_sin{0.0};
     auto sum_cos{0.0};
-    for (const AngleStamped& as : *m_angles) {
+    for (const auto as : *m_angles) {
         sum_sin += sin(as.angle);
         sum_cos += cos(as.angle);
     }
@@ -123,7 +111,7 @@ void Person::calculateAngle()
 }
 
 
-void Person::calculateVelocity(double t_frequency)
+void Person::calculateVelocity(const double t_frequency)
 {
     m_velocity = sqrt(pow((m_old_pose.position.x - m_pose.position.x), 2) +
                       pow((m_old_pose.position.y - m_pose.position.y), 2)) / (1 / t_frequency);
@@ -138,9 +126,8 @@ void Person::calculateVelocity(double t_frequency)
 
     m_velocities->emplace_back(VelocityStamped{m_velocity, ros::Time::now()});
 
-    VelocityStamped sum{};
-    std::for_each(m_velocities->begin(), m_velocities->end(), [&sum](const VelocityStamped& vs) { sum += vs; });
-    sum /= m_velocities->size();
-
-    m_average_velocity = sum.velocity;
+    auto sum{0.0};
+    for (const auto& vs : *m_velocities)
+        sum += vs.velocity;
+    m_mean_velocity = sum / m_velocities->size();
 }

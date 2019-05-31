@@ -57,7 +57,7 @@ RobustPeopleFollower::RobustPeopleFollower(const std::string& t_name)
 
 RobustPeopleFollower::~RobustPeopleFollower()
 {
-    ROS_INFO("%s shutting down", m_name.c_str());
+    ROS_INFO_STREAM(m_name << " shutting down");
     m_odom_sub.shutdown();
     m_skeleton_sub.shutdown();
 }
@@ -69,9 +69,8 @@ void RobustPeopleFollower::runLoop()
 
     while (ros::ok()) {
 
-        // create markers to be published if the target is lost
+        // create marker to be published if the target is lost
         auto last_point_marker{lastPointMarker()};
-        auto estimation_vector{targetEstimationVector()};
 
         geometry_msgs::Point32 last_target_point{};
         last_target_point.x = m_robot.target().oldPose().position.x;
@@ -240,11 +239,11 @@ void RobustPeopleFollower::skeletonCallback(const body_tracker_msgs::Skeleton::C
 
             // check for gestures
             if (skeleton.gesture == 2 && p->correctHandHeight()) {
-                if (p->gestureBegin() == ros::Time(0)) {
+                if (p->gestureBegin() == ros::Time{0}) {
                     p->gestureBegin() = ros::Time::now();
                 }
             } else {
-                if (p->gestureBegin() != ros::Time(0)) {
+                if (p->gestureBegin() != ros::Time{0}) {
 
                     // TODO: figure out how to play a sound
                     // target chooses to stop being followed
@@ -253,7 +252,7 @@ void RobustPeopleFollower::skeletonCallback(const body_tracker_msgs::Skeleton::C
                         m_robot.target() = Person{};
                         m_robot.status() = Robot::Status::WAITING;
                         m_robot.waypoints()->clear();
-                        p->gestureBegin() = ros::Time(0);
+                        p->gestureBegin() = ros::Time{0};
                     }
                 }
             }
@@ -264,10 +263,10 @@ void RobustPeopleFollower::skeletonCallback(const body_tracker_msgs::Skeleton::C
 
             // check for gestures
             if (skeleton.gesture == 2 && p->correctHandHeight()) {
-                if (p->gestureBegin() == ros::Time(0))
+                if (p->gestureBegin() == ros::Time{0})
                     p->gestureBegin() = ros::Time::now();
             } else {
-                if (p->gestureBegin() != ros::Time(0)) {
+                if (p->gestureBegin() != ros::Time{0}) {
 
                     // TODO: figure out how to play a sound
                     // new target selected after 3 seconds of closing both hands
@@ -276,7 +275,7 @@ void RobustPeopleFollower::skeletonCallback(const body_tracker_msgs::Skeleton::C
                         m_robot.status() = Robot::Status::FOLLOWING;
 
                         // reset gesture beginning time
-                        p->gestureBegin() = ros::Time(0);
+                        p->gestureBegin() = ros::Time{0};
                     }
                 }
             }
@@ -310,16 +309,16 @@ void RobustPeopleFollower::publishPersonMarkers() const
     std::vector<visualization_msgs::Marker> person_markers{}, person_vectors{};
 
     auto i{0};
-    for (auto& p : *m_robot.trackedPersons()) {
+    for (const auto& p : *m_robot.trackedPersons()) {
         if (p.distance() > 0) {
             visualization_msgs::Marker marker{};
             marker.header.frame_id = "odom";
-            marker.header.stamp = ros::Time();
+            marker.header.stamp = ros::Time::now();
             marker.ns = "persons";
             marker.id = i;
             marker.type = visualization_msgs::Marker::MESH_RESOURCE;
             marker.action = visualization_msgs::Marker::ADD;
-            marker.lifetime = ros::Duration(0.3);
+            marker.lifetime = ros::Duration{0.3};
             marker.pose.position.x = p.pose().position.x;
             marker.pose.position.y = p.pose().position.y;
             marker.pose.orientation.w = 1.0;
@@ -342,14 +341,14 @@ void RobustPeopleFollower::publishPersonMarkers() const
 
             person_markers.emplace_back(marker);
 
-            visualization_msgs::Marker vector;
+            visualization_msgs::Marker vector{};
             vector.header.frame_id = "odom";
-            vector.header.stamp = ros::Time();
+            vector.header.stamp = ros::Time::now();
             vector.ns = "vectors";
             vector.id = i;
             vector.type = visualization_msgs::Marker::ARROW;
             vector.action = visualization_msgs::Marker::ADD;
-            vector.lifetime = ros::Duration(0.3);
+            vector.lifetime = ros::Duration{0.3};
             vector.pose.position.x = p.pose().position.x;
             vector.pose.position.y = p.pose().position.y;
             vector.pose.position.z = 1.3;
@@ -441,11 +440,11 @@ visualization_msgs::Marker RobustPeopleFollower::lastPointMarker() const
 {
     visualization_msgs::Marker marker{};
     marker.header.frame_id = "odom";
-    marker.header.stamp = ros::Time();
+    marker.header.stamp = ros::Time::now();
     marker.ns = "last_seen";
     marker.type = visualization_msgs::Marker::MESH_RESOURCE;
     marker.action = visualization_msgs::Marker::ADD;
-    marker.lifetime = ros::Duration(0.3);
+    marker.lifetime = ros::Duration{0.3};
     marker.pose.position.x = m_robot.target().oldPose().position.x;
     marker.pose.position.y = m_robot.target().oldPose().position.y;
     marker.pose.orientation.w = 1.0;
@@ -460,42 +459,15 @@ visualization_msgs::Marker RobustPeopleFollower::lastPointMarker() const
 }
 
 
-visualization_msgs::Marker RobustPeopleFollower::targetEstimationVector() const
-{
-    visualization_msgs::Marker vector{};
-    vector.header.frame_id = "odom";
-    vector.header.stamp = ros::Time();
-    vector.ns = "vectors";
-    vector.type = visualization_msgs::Marker::ARROW;
-    vector.action = visualization_msgs::Marker::ADD;
-    vector.lifetime = ros::Duration(20);
-    vector.pose.position.x = m_robot.target().pose().position.x;
-    vector.pose.position.y = m_robot.target().pose().position.y;
-    vector.pose.position.z = 1.3;
-    tf::Quaternion q = tf::createQuaternionFromYaw(m_robot.target().meanAngle());
-    vector.pose.orientation.x = q.getX();
-    vector.pose.orientation.y = q.getY();
-    vector.pose.orientation.z = q.getZ();
-    vector.pose.orientation.w = q.getW();
-    vector.scale.x = 0.5 + VECTOR_LENGTH_FACTOR * m_robot.target().velocity();
-    vector.scale.y = 0.1;
-    vector.scale.z = 0.1;
-    vector.color.a = 1.0;
-    vector.color.r = 1.0;
-
-    return vector;
-}
-
-
 visualization_msgs::Marker RobustPeopleFollower::targetEstimationMarker() const
 {
     visualization_msgs::Marker marker{};
     marker.header.frame_id = "odom";
-    marker.header.stamp = ros::Time();
+    marker.header.stamp = ros::Time::now();
     marker.ns = "estimation";
     marker.type = visualization_msgs::Marker::MESH_RESOURCE;
     marker.action = visualization_msgs::Marker::ADD;
-    marker.lifetime = ros::Duration(0.3);
+    marker.lifetime = ros::Duration{0.3};
     marker.pose.position.x = m_robot.estimatedTargetPosition().x;
     marker.pose.position.y = m_robot.estimatedTargetPosition().y;
     marker.pose.orientation.w = 1.0;

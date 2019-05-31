@@ -54,13 +54,13 @@ public:
 
     // setters
     inline geometry_msgs::Pose& pose() { return m_pose; }
-    inline double& angle() { return m_angle_radian; }
+    inline double& angle() { return m_angle; }
 
     // getters
     inline const geometry_msgs::Pose& pose() const { return m_pose; }
     inline const geometry_msgs::Pose& oldPose() const { return m_old_pose; }
     inline const double velocity() const { return m_velocity; }
-    inline const double angle() const { return m_angle_radian; }
+    inline const double angle() const { return m_angle; }
 
     inline void updatePose() { m_old_pose = m_pose; }
 
@@ -68,7 +68,7 @@ protected:
     geometry_msgs::Pose m_pose{};
     geometry_msgs::Pose m_old_pose{};
     double m_velocity{};
-    double m_angle_radian{};
+    double m_angle{};
 };
 
 

@@ -94,8 +94,6 @@ private:
     Status m_status{Status::WAITING};
     std::shared_ptr<std::deque<geometry_msgs::PointStamped>> m_waypoint_list{};
     ros::Time m_last_waypoint_time{};
-    double m_current_linear{};
-    double m_current_angular{};
     geometry_msgs::Point32 m_estimated_target_position{};
 
     // instance of the target to follow

@@ -111,7 +111,6 @@ private:
     void publishWaypoints() const;
     void updateTargetPath();
     visualization_msgs::Marker lastPointMarker() const;
-    visualization_msgs::Marker targetEstimationVector() const;
     visualization_msgs::Marker targetEstimationMarker() const;
 };
 

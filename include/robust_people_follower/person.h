@@ -73,7 +73,7 @@ public:
     inline const bool target() const { return m_is_target; }
     inline const double distance() const { return m_skeleton.centerOfMass.x; }
     inline const double yDeviation() const { return m_skeleton.centerOfMass.y; }
-    inline const double averageVelocity() const { return m_average_velocity; }
+    inline const double meanVelocity() const { return m_mean_velocity; }
     inline const double meanAngle() const { return m_mean_angle; }
     inline const ros::Time lastSeen() const { return m_velocities->at(m_velocities->size() - 1).stamp; }
 
@@ -86,7 +86,7 @@ private:
     bool m_is_target{};
     body_tracker_msgs::Skeleton m_skeleton{};
     ros::Time m_gesture_begin{};
-    double m_average_velocity{};
+    double m_mean_velocity{};
     double m_mean_angle{};
     std::shared_ptr<std::vector<VelocityStamped>> m_velocities;
     std::shared_ptr<std::vector<AngleStamped>> m_angles;
