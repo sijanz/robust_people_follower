@@ -39,9 +39,9 @@
 
 
 Person::Person(const body_tracker_msgs::Skeleton& t_skeleton)
-        : m_is_target{}, m_gesture_begin{}, m_skeleton{t_skeleton}, m_mean_velocity{},
-          m_velocities{new std::vector<VelocityStamped>{}}, m_angles{new std::vector<AngleStamped>{}},
-          m_mean_velocities{new std::vector<VelocityStamped>{}}, m_mean_angles{new std::vector<AngleStamped>{}} {}
+        : m_is_target{}, m_skeleton{t_skeleton}, m_gesture_begin{}, m_mean_velocity{}, m_mean_angle{},
+          m_velocities{new std::vector<VelocityStamped>{}}, m_mean_velocities{new std::vector<VelocityStamped>{}},
+          m_angles{new std::vector<AngleStamped>{}}, m_mean_angles{new std::vector<AngleStamped>{}} {}
 
 
 void Person::printInfo() const
@@ -65,13 +65,13 @@ void Person::printVerboseInfo() const
 
 void Person::calculateAbsolutePosition(const double t_robot_x, const double t_robot_y, const double t_robot_angle)
 {
-    tf::Matrix3x3 rotation{
+    auto rotation{tf::Matrix3x3{
             cos(t_robot_angle), -sin(t_robot_angle), t_robot_x,
             sin(t_robot_angle), cos(t_robot_angle), t_robot_y,
             0.0, 0.0, 1.0
-    };
+    }};
 
-    tf::Vector3 local_vector{(m_skeleton.centerOfMass.x / 1000), (m_skeleton.centerOfMass.y / 1000), 1.0};
+    auto local_vector{tf::Vector3{(m_skeleton.centerOfMass.x / 1000), (m_skeleton.centerOfMass.y / 1000), 1.0}};
     auto global_vector{rotation * local_vector};
 
     m_pose.position.x = global_vector.x();

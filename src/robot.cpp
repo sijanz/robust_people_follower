@@ -40,11 +40,10 @@
 #include "robust_people_follower/robot.h"
 
 
-// TODO: update constructor (look at new members!)
 Robot::Robot()
         : m_status{Status::WAITING}, m_waypoint_list{new std::deque<geometry_msgs::PointStamped>{}},
-          m_last_waypoint_time{}, m_estimated_target_position{}, m_target{},
-          m_tracked_persons{new std::vector<Person>} {}
+          m_last_waypoint_time{}, m_old_estimated_target_position{}, m_estimated_target_position{}, m_target{},
+          m_tracked_persons{new std::vector<Person>}, m_current_linear{}, m_current_angular{} {}
 
 
 void Robot::printInfo() const
@@ -81,7 +80,7 @@ void Robot::addNewWaypoint(const int t_times_per_second)
         m_waypoint_list->pop_front();
 
     if (ros::Time::now() - m_last_waypoint_time > ros::Duration(0, (1000000000 / t_times_per_second))) {
-        geometry_msgs::PointStamped position{};
+        auto position{geometry_msgs::PointStamped{}};
         position.header.stamp = ros::Time::now();
         position.point.x = m_target.pose().position.x;
         position.point.y = m_target.pose().position.y;
@@ -106,7 +105,7 @@ geometry_msgs::Twist Robot::velocityCommand(const double FOLLOW_THRESHOLD)
     if (m_status == Status::LOS_LOST && m_waypoint_list->empty())
         m_status = Status::SEARCHING;
 
-    geometry_msgs::Twist speed{};
+    auto speed{geometry_msgs::Twist{}};
 
     // if target is too near, move backwards
     if (distance_to_target < 1000) {
@@ -135,19 +134,19 @@ geometry_msgs::Twist Robot::velocityCommand(const double FOLLOW_THRESHOLD)
 
         auto current_goal{m_waypoint_list->at(0)};
 
-        tf::Matrix3x3 rotation{
+        auto rotation{tf::Matrix3x3{
                 cos(m_angle), -sin(m_angle), m_pose.position.x,
                 sin(m_angle), cos(m_angle), m_pose.position.y,
                 0.0, 0.0, 1.0
-        };
+        }};
 
-        tf::Vector3 global_vector{current_goal.point.x, current_goal.point.y, 1.0};
+        auto global_vector{tf::Vector3{current_goal.point.x, current_goal.point.y, 1.0}};
         auto local_vector{rotation.inverse() * global_vector};
 
         auto local_angle_to_goal{atan2(local_vector.y(), local_vector.x())};
 
         auto distance_to_goal{sqrt(pow(current_goal.point.x - m_pose.position.x, 2) +
-                                           pow(current_goal.point.y - m_pose.position.y, 2))};
+                                   pow(current_goal.point.y - m_pose.position.y, 2))};
 
         auto speed_linear{0.3};
 
@@ -190,8 +189,8 @@ geometry_msgs::Twist Robot::velocityCommand(const double FOLLOW_THRESHOLD)
 
 void Robot::calculateAngle()
 {
-    tf::Quaternion q{m_pose.orientation.x, m_pose.orientation.y, m_pose.orientation.z, m_pose.orientation.w};
-    tf::Matrix3x3 m{q};
+    auto q{tf::Quaternion{m_pose.orientation.x, m_pose.orientation.y, m_pose.orientation.z, m_pose.orientation.w}};
+    auto m{tf::Matrix3x3{q}};
 
     auto roll{0.0}, pitch{0.0}, theta{0.0};
     m.getRPY(roll, pitch, theta);
@@ -209,16 +208,8 @@ void Robot::calculateVelocity(const double t_frequency)
 
 // TODO: implement average filter
 //
-void Robot::estimateTargetPosition(const double x_l, const double y_l)
+void Robot::estimateTargetPosition(const double t_last_x, const double t_last_y, const double t_frequency)
 {
-
-    // TODO: remove if new solution works
-    /*
-    auto distance{m_target.meanVelocity() * (ros::Time::now() - m_target.lastSeen()).toSec()};
-
-    m_estimated_target_position.x = x_l + cos(m_target.meanAngle()) * distance;
-    m_estimated_target_position.y = y_l + sin(m_target.meanAngle()) * distance;
-     */
 
     // velocity
     auto velocity{0.0};
@@ -237,6 +228,7 @@ void Robot::estimateTargetPosition(const double x_l, const double y_l)
 
     // DEBUG
     ROS_INFO_STREAM("mean velocities:");
+
     auto last_matching_velocity{m_target.meanVelocities()->at(m_target.meanVelocities()->size() - 1)};
     for (const auto& vs : *m_target.meanVelocities()) {
         if (m_target.lastSeen() - vs.stamp > ros::Duration{1}) {
@@ -254,10 +246,6 @@ void Robot::estimateTargetPosition(const double x_l, const double y_l)
     // DEBUG
     ROS_INFO_STREAM("estimateTargetPosition: acceleration: " << acceleration);
 
-    // FIXME: acceleration cannot be negative
-//    if (acceleration < 0.0)
-//        acceleration = 0.0;
-
 
     // yaw rate
     auto yaw_rate{0.0};
@@ -270,21 +258,25 @@ void Robot::estimateTargetPosition(const double x_l, const double y_l)
         }
     }
 
+    // https://gamedev.stackexchange.com/questions/4467/comparing-angles-and-working-out-the-difference/169509#169509
     yaw_rate = (fmod(last_matching_angle.angle - first_matching_angle.angle + (3 * M_PI), 2 * M_PI) - M_PI)
                / (last_matching_angle.stamp - first_matching_angle.stamp).toSec();
 
     // DEBUG
     ROS_INFO_STREAM("estimateTargetPosition: yaw_rate: " << yaw_rate);
 
+
     auto theta{m_target.meanAngle()};
 
     //DEBUG
     ROS_INFO_STREAM("estimateTargetPosition: theta: " << theta);
 
+
     auto delta_t{(ros::Time::now() - m_target.lastSeen()).toSec()};
 
     // DEBUG
     ROS_INFO_STREAM("estimateTargetPosition: delta_t: " << delta_t);
+
 
     auto x_t{(1 / pow(yaw_rate, 2.0)) * ((velocity * yaw_rate + acceleration * yaw_rate * delta_t)
                                          * sin(theta + yaw_rate * delta_t)
@@ -296,20 +288,19 @@ void Robot::estimateTargetPosition(const double x_l, const double y_l)
                                          + acceleration * sin(theta + yaw_rate * delta_t)
                                          + velocity * yaw_rate * cos(theta) - acceleration * sin(theta))};
 
-    // TODO: frequency as parameter
     auto estimated_velocity{sqrt(pow((m_old_estimated_target_position.x - m_estimated_target_position.x), 2)
                                  + pow((m_old_estimated_target_position.y - m_estimated_target_position.y), 2))
-                            / (1.0 / 10.0)};
+                            / (1 / t_frequency)};
 
     // DEBUG
     ROS_INFO_STREAM("estimateTargetPosition: estimated_velocity: " << estimated_velocity);
 
     if (estimated_velocity < 0.1 && (ros::Time::now() - m_target.lastSeen()) > ros::Duration{1})
-        m_target_stop = true;
+        m_estimation_stop = true;
 
-    if (!m_target_stop) {
-        m_estimated_target_position.x = x_l + x_t;
-        m_estimated_target_position.y = y_l + y_t;
+    if (!m_estimation_stop) {
+        m_estimated_target_position.x = t_last_x + x_t;
+        m_estimated_target_position.y = t_last_y + y_t;
     }
 
     m_old_estimated_target_position = m_estimated_target_position;
@@ -320,17 +311,16 @@ void Robot::estimateTargetPosition(const double x_l, const double y_l)
 void Robot::reIdentify()
 {
     auto min_distance{0.0};
+    auto distance = [](const geometry_msgs::Point& p1, const geometry_msgs::Point32& p2) {
+        return sqrt(pow((p2.x - p1.x), 2) + pow((p2.y - p1.y), 2));
+    };
+
     if (!m_tracked_persons->empty()) {
-        min_distance = sqrt(
-                pow((m_tracked_persons->at(0).pose().position.x - m_estimated_target_position.x), 2)
-                + pow((m_tracked_persons->at(0).pose().position.y - m_estimated_target_position.y), 2));
+        min_distance = distance(m_tracked_persons->at(0).pose().position, m_estimated_target_position);
 
         for (auto& p : *m_tracked_persons) {
-            if (sqrt(pow((p.pose().position.x - m_estimated_target_position.x), 2)
-                     + pow((p.pose().position.y - m_estimated_target_position.y), 2)) <
-                min_distance) {
-                min_distance = sqrt(pow((p.pose().position.x - m_estimated_target_position.x), 2)
-                                    + pow((p.pose().position.y - m_estimated_target_position.y), 2));
+            if (distance(p.pose().position, m_estimated_target_position) < min_distance) {
+                min_distance = distance(p.pose().position, m_estimated_target_position);
                 p.target() = true;
                 m_target = p;
                 m_status = Status::FOLLOWING;

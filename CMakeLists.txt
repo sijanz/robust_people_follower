@@ -139,7 +139,6 @@ include_directories(
 ## The recommended prefix ensures that target names across packages don't collide
 add_executable(${PROJECT_NAME}_node
         src/robust_people_follower_node.cpp
-        src/robust_people_follower.cpp
         src/robot.cpp
         src/person.cpp
         )
