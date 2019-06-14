@@ -36,7 +36,7 @@
 #include "robust_people_follower/robust_people_follower.h"
 
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
     ros::init(argc, argv, "robust_people_follower");
     RobustPeopleFollower robust_people_follower{ros::this_node::getName()};

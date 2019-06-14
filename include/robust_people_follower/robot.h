@@ -85,7 +85,7 @@ public:
     inline const std::shared_ptr<std::vector<Person>> trackedPersons() const { return m_tracked_persons; }
 
     void addNewWaypoint(int t_times_per_second);
-    void estimateTargetPosition(double t_x, double t_y);
+    void estimateTargetPosition(double x_l, double y_l);
     geometry_msgs::Twist velocityCommand(double FOLLOW_THRESHOLD);
     void reIdentify();
     void managePersonList();
@@ -94,13 +94,18 @@ private:
     Status m_status{Status::WAITING};
     std::shared_ptr<std::deque<geometry_msgs::PointStamped>> m_waypoint_list{};
     ros::Time m_last_waypoint_time{};
+    geometry_msgs::Point32 m_old_estimated_target_position{};
     geometry_msgs::Point32 m_estimated_target_position{};
+    bool m_target_stop{false};
 
     // instance of the target to follow
     Person m_target{};
 
     // list of persons in the frame
     std::shared_ptr<std::vector<Person>> m_tracked_persons{};
+
+    double m_current_linear{};
+    double m_current_angular{};
 };
 
 

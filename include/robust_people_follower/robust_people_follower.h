@@ -82,12 +82,12 @@ private:
     ros::Publisher m_visualization_pub{};
 
     // frequency of the main loop
-    const double LOOP_FREQUENCY{10.0};
+    static constexpr double LOOP_FREQUENCY{10.0};
 
     // factor for person vector length
-    const double VECTOR_LENGTH_FACTOR{1.5};
+    static constexpr double VECTOR_LENGTH_FACTOR{1.5};
 
-    const double FOLLOW_THRESHOLD{1800};
+    static constexpr double FOLLOW_THRESHOLD{1800};
 
     // instance of the turtlebot robot
     Robot m_robot{};

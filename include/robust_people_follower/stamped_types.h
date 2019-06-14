@@ -39,6 +39,7 @@ struct AngleStamped
     ros::Time stamp{};
 
     // constructors
+    AngleStamped() = default;
     AngleStamped(const double t_angle, const ros::Time& t_stamp) : angle{t_angle}, stamp{t_stamp} {}
 
     // overloaded operators

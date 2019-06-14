@@ -1,3 +1,5 @@
+#include <cmath>
+
 /*********************************************************************
 * Software License Agreement (BSD 3-Clause License)
 *
@@ -38,6 +40,7 @@
 #include "robust_people_follower/robot.h"
 
 
+// TODO: update constructor (look at new members!)
 Robot::Robot()
         : m_status{Status::WAITING}, m_waypoint_list{new std::deque<geometry_msgs::PointStamped>{}},
           m_last_waypoint_time{}, m_estimated_target_position{}, m_target{},
@@ -144,7 +147,7 @@ geometry_msgs::Twist Robot::velocityCommand(const double FOLLOW_THRESHOLD)
         auto local_angle_to_goal{atan2(local_vector.y(), local_vector.x())};
 
         auto distance_to_goal{sqrt(pow(current_goal.point.x - m_pose.position.x, 2) +
-                                   pow(current_goal.point.y - m_pose.position.y, 2))};
+                                           pow(current_goal.point.y - m_pose.position.y, 2))};
 
         auto speed_linear{0.3};
 
@@ -161,7 +164,8 @@ geometry_msgs::Twist Robot::velocityCommand(const double FOLLOW_THRESHOLD)
         if (distance_to_goal < 0.3) {
 
             // input less acceleration
-            speed_linear = 0.6 * speed_linear;
+            speed.linear.x = m_current_linear - (m_current_linear / 100) * 40;
+            speed.angular.z = m_current_angular - (m_current_angular / 100) * 40;
 
             m_waypoint_list->pop_front();
 
@@ -176,6 +180,9 @@ geometry_msgs::Twist Robot::velocityCommand(const double FOLLOW_THRESHOLD)
         // waypoint list is empty
     else
         m_status = Status::SEARCHING;
+
+    m_current_linear = speed.linear.x;
+    m_current_angular = speed.angular.z;
 
     return speed;
 }
@@ -200,15 +207,116 @@ void Robot::calculateVelocity(const double t_frequency)
 }
 
 
-void Robot::estimateTargetPosition(const double t_x, const double t_y)
+// TODO: implement average filter
+//
+void Robot::estimateTargetPosition(const double x_l, const double y_l)
 {
+
+    // TODO: remove if new solution works
+    /*
     auto distance{m_target.meanVelocity() * (ros::Time::now() - m_target.lastSeen()).toSec()};
 
-    m_estimated_target_position.x = t_x + cos(m_target.meanAngle()) * distance;
-    m_estimated_target_position.y = t_y + sin(m_target.meanAngle()) * distance;
+    m_estimated_target_position.x = x_l + cos(m_target.meanAngle()) * distance;
+    m_estimated_target_position.y = y_l + sin(m_target.meanAngle()) * distance;
+     */
+
+    // velocity
+    auto velocity{0.0};
+    for (const auto& vs : *m_target.meanVelocities())
+        velocity += vs.velocity;
+
+    velocity /= m_target.meanVelocities()->size();
+
+    // DEBUG
+    ROS_INFO_STREAM("estimateTargetPosition: velocity: " << velocity);
+
+
+    // acceleration
+    auto acceleration{0.0};
+    auto first_matching_velocity{VelocityStamped{}};
+
+    // DEBUG
+    ROS_INFO_STREAM("mean velocities:");
+    auto last_matching_velocity{m_target.meanVelocities()->at(m_target.meanVelocities()->size() - 1)};
+    for (const auto& vs : *m_target.meanVelocities()) {
+        if (m_target.lastSeen() - vs.stamp > ros::Duration{1}) {
+
+            // DEBUG
+            ROS_INFO_STREAM(vs.velocity);
+            first_matching_velocity = vs;
+            break;
+        }
+    }
+
+    acceleration = (last_matching_velocity.velocity - first_matching_velocity.velocity)
+                   / (last_matching_velocity.stamp - first_matching_velocity.stamp).toSec();
+
+    // DEBUG
+    ROS_INFO_STREAM("estimateTargetPosition: acceleration: " << acceleration);
+
+    // FIXME: acceleration cannot be negative
+//    if (acceleration < 0.0)
+//        acceleration = 0.0;
+
+
+    // yaw rate
+    auto yaw_rate{0.0};
+    auto first_matching_angle{AngleStamped{}};
+    auto last_matching_angle{m_target.meanAngles()->at(m_target.meanAngles()->size() - 1)};
+    for (const auto& as : *m_target.meanAngles()) {
+        if (m_target.lastSeen() - as.stamp > ros::Duration{2}) {
+            first_matching_angle = as;
+            break;
+        }
+    }
+
+    yaw_rate = (fmod(last_matching_angle.angle - first_matching_angle.angle + (3 * M_PI), 2 * M_PI) - M_PI)
+               / (last_matching_angle.stamp - first_matching_angle.stamp).toSec();
+
+    // DEBUG
+    ROS_INFO_STREAM("estimateTargetPosition: yaw_rate: " << yaw_rate);
+
+    auto theta{m_target.meanAngle()};
+
+    //DEBUG
+    ROS_INFO_STREAM("estimateTargetPosition: theta: " << theta);
+
+    auto delta_t{(ros::Time::now() - m_target.lastSeen()).toSec()};
+
+    // DEBUG
+    ROS_INFO_STREAM("estimateTargetPosition: delta_t: " << delta_t);
+
+    auto x_t{(1 / pow(yaw_rate, 2.0)) * ((velocity * yaw_rate + acceleration * yaw_rate * delta_t)
+                                         * sin(theta + yaw_rate * delta_t)
+                                         + acceleration * cos(theta + yaw_rate * delta_t)
+                                         - velocity * yaw_rate * sin(theta) - acceleration * cos(theta))};
+
+    auto y_t{(1 / pow(yaw_rate, 2.0)) * ((-velocity * yaw_rate - acceleration * yaw_rate * delta_t)
+                                         * cos(theta + yaw_rate * delta_t)
+                                         + acceleration * sin(theta + yaw_rate * delta_t)
+                                         + velocity * yaw_rate * cos(theta) - acceleration * sin(theta))};
+
+    // TODO: frequency as parameter
+    auto estimated_velocity{sqrt(pow((m_old_estimated_target_position.x - m_estimated_target_position.x), 2)
+                                 + pow((m_old_estimated_target_position.y - m_estimated_target_position.y), 2))
+                            / (1.0 / 10.0)};
+
+    // DEBUG
+    ROS_INFO_STREAM("estimateTargetPosition: estimated_velocity: " << estimated_velocity);
+
+    if (estimated_velocity < 0.1 && (ros::Time::now() - m_target.lastSeen()) > ros::Duration{1})
+        m_target_stop = true;
+
+    if (!m_target_stop) {
+        m_estimated_target_position.x = x_l + x_t;
+        m_estimated_target_position.y = y_l + y_t;
+    }
+
+    m_old_estimated_target_position = m_estimated_target_position;
 }
 
 
+// TODO: add weight function
 void Robot::reIdentify()
 {
     auto min_distance{0.0};

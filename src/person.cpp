@@ -40,7 +40,8 @@
 
 Person::Person(const body_tracker_msgs::Skeleton& t_skeleton)
         : m_is_target{}, m_gesture_begin{}, m_skeleton{t_skeleton}, m_mean_velocity{},
-          m_velocities{new std::vector<VelocityStamped>{}}, m_angles{new std::vector<AngleStamped>{}} {}
+          m_velocities{new std::vector<VelocityStamped>{}}, m_angles{new std::vector<AngleStamped>{}},
+          m_mean_velocities{new std::vector<VelocityStamped>{}}, m_mean_angles{new std::vector<AngleStamped>{}} {}
 
 
 void Person::printInfo() const
@@ -102,12 +103,13 @@ void Person::calculateAngle()
     // https://en.wikipedia.org/wiki/Mean_of_circular_quantities
     auto sum_sin{0.0};
     auto sum_cos{0.0};
-    for (const auto as : *m_angles) {
+    for (const auto& as : *m_angles) {
         sum_sin += sin(as.angle);
         sum_cos += cos(as.angle);
     }
 
     m_mean_angle = atan2(((1.0 / m_angles->size()) * sum_sin), ((1.0 / m_angles->size()) * sum_cos));
+    m_mean_angles->emplace_back(AngleStamped{m_mean_angle, ros::Time::now()});
 }
 
 
@@ -130,4 +132,8 @@ void Person::calculateVelocity(const double t_frequency)
     for (const auto& vs : *m_velocities)
         sum += vs.velocity;
     m_mean_velocity = sum / m_velocities->size();
+
+    // FIXME: not good, find better way to filter out high values
+    if (m_mean_velocity < 7.0)
+        m_mean_velocities->emplace_back(VelocityStamped{m_mean_velocity, ros::Time::now()});
 }

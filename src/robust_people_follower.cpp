@@ -49,8 +49,8 @@ RobustPeopleFollower::RobustPeopleFollower(const std::string& t_name)
     m_skeleton_sub = m_nh.subscribe("/body_tracker/skeleton", 10, &RobustPeopleFollower::skeletonCallback, this);
 
     m_velocity_command_pub = m_nh.advertise<geometry_msgs::Twist>("/mobile_base/commands/velocity", 1000);
-    m_robot_path_pub = m_nh.advertise<nav_msgs::Path>("robust_people_follower/robot_path", 1000);
-    m_target_path_pub = m_nh.advertise<nav_msgs::Path>("robust_people_follower/target_path", 1000);
+    m_robot_path_pub = m_nh.advertise<nav_msgs::Path>("robust_people_follower/robot_path", 10);
+    m_target_path_pub = m_nh.advertise<nav_msgs::Path>("robust_people_follower/target_path", 10);
     m_visualization_pub = m_nh.advertise<visualization_msgs::Marker>("robust_people_follower/markers", 10);
 }
 
@@ -67,11 +67,14 @@ void RobustPeopleFollower::runLoop()
 {
     ros::Rate loop_rate{LOOP_FREQUENCY};
 
+    auto search_time{ros::Time{0}};
+
     while (ros::ok()) {
 
         // create marker to be published if the target is lost
         auto last_point_marker{lastPointMarker()};
 
+        // set the point where the target is last seen
         geometry_msgs::Point32 last_target_point{};
         last_target_point.x = m_robot.target().oldPose().position.x;
         last_target_point.y = m_robot.target().oldPose().position.y;
@@ -87,6 +90,9 @@ void RobustPeopleFollower::runLoop()
             }
         }
 
+        // print out program information on the screen
+        debugPrintout();
+
         // set status to "LOS_LOST" if target is lost
         if (m_robot.target().distance() == 0 && m_robot.status() == Robot::Status::FOLLOWING)
             m_robot.status() = Robot::Status::LOS_LOST;
@@ -98,16 +104,24 @@ void RobustPeopleFollower::runLoop()
             m_visualization_pub.publish(targetEstimationMarker());
         }
 
+        // reidentify after 2 seconds
+        if (m_robot.status() == Robot::Status::SEARCHING) {
+            if (search_time == ros::Time{0})
+                search_time = ros::Time::now() + ros::Duration{2};
+            else {
+                if (ros::Time::now() > search_time)
+                    m_robot.reIdentify();
+            }
+        }
+
         // FIXME: not working correctly
         // re-identify the target if the robot is at the target's last known position
-        if (m_robot.status() == Robot::Status::SEARCHING)
-            m_robot.reIdentify();
-
+//        if (m_robot.status() == Robot::Status::SEARCHING)
+//            m_robot.reIdentify();
 
         // add new goal to goal list
         if (m_robot.target().distance() > FOLLOW_THRESHOLD)
             m_robot.addNewWaypoint(4);
-
 
         // update path for target to be published
         updateTargetPath();
@@ -125,9 +139,6 @@ void RobustPeopleFollower::runLoop()
         m_robot.updatePose();
         for (auto& p : *m_robot.trackedPersons())
             p.updatePose();
-
-        // print out program information on the screen
-        debugPrintout();
 
         // delete persons that are no longer in line of sight
         m_robot.managePersonList();
