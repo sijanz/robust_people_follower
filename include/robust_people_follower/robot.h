@@ -84,10 +84,12 @@ public:
     inline const Person& target() const { return m_target; }
     inline const std::shared_ptr<std::vector<Person>> trackedPersons() const { return m_tracked_persons; }
     inline const bool estimationStop() const { return m_estimation_stop; }
+    inline const double estimationRadius() const { return m_estimation_radius; }
 
     void addNewWaypoint(int t_times_per_second);
     void estimateTargetPosition(double t_last_x, double t_last_y, double t_frequency);
     geometry_msgs::Twist velocityCommand(double FOLLOW_THRESHOLD);
+    geometry_msgs::Twist velocityCommand(double t_x, double t_y);
     void reIdentify();
     void managePersonList();
 
@@ -98,6 +100,7 @@ private:
     geometry_msgs::Point32 m_old_estimated_target_position{};
     geometry_msgs::Point32 m_estimated_target_position{};
     bool m_estimation_stop{false};
+    double m_estimation_radius{};
 
     // instance of the target to follow
     Person m_target{};

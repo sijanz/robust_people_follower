@@ -42,6 +42,7 @@
 #include <ros/ros.h>
 #include <body_tracker_msgs/Skeleton.h>
 #include <geometry_msgs/Point32.h>
+#include <deque>
 
 #include "robust_people_follower/object_2d_space.h"
 
@@ -75,11 +76,11 @@ public:
     inline const double yDeviation() const { return m_skeleton.centerOfMass.y; }
     inline const double meanVelocity() const { return m_mean_velocity; }
     inline const double meanAngle() const { return m_mean_angle; }
-    inline const ros::Time lastSeen() const { return m_velocities->at(m_velocities->size() - 1).stamp; }
+    inline const ros::Time& lastSeen() const { return m_velocities->at(m_velocities->size() - 1).stamp; }
     inline const std::shared_ptr<std::vector<VelocityStamped>> velocities() const { return m_velocities; }
-    inline const std::shared_ptr<std::vector<VelocityStamped>> meanVelocities() const { return m_mean_velocities; }
+    inline const std::deque<VelocityStamped>& meanVelocities() const { return m_mean_velocities; }
     inline const std::shared_ptr<std::vector<AngleStamped>> angles() const { return m_angles; }
-    inline const std::shared_ptr<std::vector<AngleStamped>> meanAngles() const { return m_mean_angles; }
+    inline const std::deque<AngleStamped>& meanAngles() const { return m_mean_angles; }
 
     void printVerboseInfo() const;
     bool correctHandHeight() const;
@@ -93,9 +94,9 @@ private:
     double m_mean_velocity{};
     double m_mean_angle{};
     std::shared_ptr<std::vector<VelocityStamped>> m_velocities;
-    std::shared_ptr<std::vector<VelocityStamped>> m_mean_velocities;
+    std::deque<VelocityStamped> m_mean_velocities;
     std::shared_ptr<std::vector<AngleStamped>> m_angles;
-    std::shared_ptr<std::vector<AngleStamped>> m_mean_angles;
+    std::deque<AngleStamped> m_mean_angles;
 };
 
 

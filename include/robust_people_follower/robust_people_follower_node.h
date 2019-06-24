@@ -112,6 +112,9 @@ private:
     void updateTargetPath();
     visualization_msgs::Marker lastPointMarker() const;
     visualization_msgs::Marker targetEstimationMarker() const;
+    visualization_msgs::Marker estimationAreaMarker() const;
+
+    // TODO: add estimation path publisher
 };
 
 

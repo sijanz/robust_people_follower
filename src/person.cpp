@@ -40,14 +40,14 @@
 
 Person::Person(const body_tracker_msgs::Skeleton& t_skeleton)
         : m_is_target{}, m_skeleton{t_skeleton}, m_gesture_begin{}, m_mean_velocity{}, m_mean_angle{},
-          m_velocities{new std::vector<VelocityStamped>{}}, m_mean_velocities{new std::vector<VelocityStamped>{}},
-          m_angles{new std::vector<AngleStamped>{}}, m_mean_angles{new std::vector<AngleStamped>{}} {}
+          m_velocities{new std::vector<VelocityStamped>{}}, m_mean_velocities{std::deque<VelocityStamped>{}},
+          m_angles{new std::vector<AngleStamped>{}}, m_mean_angles{std::deque<AngleStamped>{}} {}
 
 
 void Person::printInfo() const
 {
-    ROS_INFO("id: %d, is target: %d, distance: %f, gestures: %d",
-             m_skeleton.body_id, m_is_target, m_skeleton.centerOfMass.x, m_skeleton.gesture);
+    ROS_INFO("id: %d, is target: %d, distance: %f, gestures: %d, correct height: %d",
+             m_skeleton.body_id, m_is_target, m_skeleton.centerOfMass.x, m_skeleton.gesture, correctHandHeight());
 }
 
 
@@ -56,6 +56,7 @@ void Person::printVerboseInfo() const
     ROS_INFO_STREAM("id : " << m_skeleton.body_id);
     ROS_INFO_STREAM("  velocity: " << m_velocity);
     ROS_INFO_STREAM("  mean velocity: " << m_mean_velocity);
+    ROS_INFO_STREAM("  mean_velocities size: " << m_mean_velocities.size());
     ROS_INFO_STREAM("  mean angle: " << m_mean_angle);
     ROS_INFO_STREAM("  theta: " << m_angle);
     ROS_INFO_STREAM("  distance: " << m_skeleton.centerOfMass.x);
@@ -87,6 +88,8 @@ bool Person::correctHandHeight() const
 
 void Person::calculateAngle()
 {
+
+    // FIXME: use abs?
     m_angle = std::atan2((m_pose.position.y - m_old_pose.position.y),
                          (m_pose.position.x - m_old_pose.position.x));
 
@@ -100,6 +103,7 @@ void Person::calculateAngle()
 
     m_angles->emplace_back(AngleStamped{m_angle, ros::Time::now()});
 
+    // TODO: only use last 5 seconds
     // https://en.wikipedia.org/wiki/Mean_of_circular_quantities
     auto sum_sin{0.0};
     auto sum_cos{0.0};
@@ -109,7 +113,10 @@ void Person::calculateAngle()
     }
 
     m_mean_angle = atan2(((1.0 / m_angles->size()) * sum_sin), ((1.0 / m_angles->size()) * sum_cos));
-    m_mean_angles->emplace_back(AngleStamped{m_mean_angle, ros::Time::now()});
+    m_mean_angles.emplace_back(AngleStamped{m_mean_angle, ros::Time::now()});
+
+    if (m_mean_angles.size() > 200)
+        m_mean_angles.pop_front();
 }
 
 
@@ -135,5 +142,8 @@ void Person::calculateVelocity(const double t_frequency)
 
     // FIXME: not good, find better way to filter out high values
     if (m_mean_velocity < 7.0)
-        m_mean_velocities->emplace_back(VelocityStamped{m_mean_velocity, ros::Time::now()});
+        m_mean_velocities.emplace_back(VelocityStamped{m_mean_velocity, ros::Time::now()});
+
+    if (m_mean_velocities.size() > 200)
+        m_mean_velocities.pop_front();
 }

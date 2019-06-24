@@ -40,8 +40,8 @@
 
 
 RobustPeopleFollower::RobustPeopleFollower(const std::string& t_name)
-        : m_robot{}, m_robot_path{new nav_msgs::Path{}}, m_target_path{new nav_msgs::Path{}}, m_seq_robot{},
-          m_seq_target{}
+        : m_robot{}, m_robot_path{new nav_msgs::Path{}}, m_target_path{new nav_msgs::Path{}},
+          m_seq_robot{}, m_seq_target{}
 {
     m_name = t_name;
 
@@ -58,16 +58,19 @@ RobustPeopleFollower::RobustPeopleFollower(const std::string& t_name)
 RobustPeopleFollower::~RobustPeopleFollower()
 {
     ROS_INFO_STREAM(m_name << " shutting down");
+
     m_odom_sub.shutdown();
     m_skeleton_sub.shutdown();
+    m_velocity_command_pub.shutdown();
+    m_robot_path_pub.shutdown();
+    m_target_path_pub.shutdown();
+    m_visualization_pub.shutdown();
 }
 
 
 void RobustPeopleFollower::runLoop()
 {
     auto loop_rate{ros::Rate{LOOP_FREQUENCY}};
-
-    auto search_time{ros::Time{0}};
 
     while (ros::ok()) {
 
@@ -94,28 +97,41 @@ void RobustPeopleFollower::runLoop()
         debugPrintout();
 
         // set status to "LOS_LOST" if target is lost
-        if (m_robot.target().distance() == 0 && m_robot.status() == Robot::Status::FOLLOWING)
+        if (m_robot.target().distance() == 0 && m_robot.status() == Robot::Status::FOLLOWING) {
             m_robot.status() = Robot::Status::LOS_LOST;
+
+            // DEBUG
+            ROS_INFO_STREAM("target last seen: " << m_robot.target().lastSeen());
+            ROS_INFO_STREAM("mean velocities:");
+            for (const auto& vs : m_robot.target().meanVelocities()) {
+                if (m_robot.target().lastSeen() - vs.stamp < ros::Duration{1})
+                    ROS_INFO_STREAM(vs.velocity << " " << m_robot.target().lastSeen().toSec() - vs.stamp.toSec());
+            }
+
+            ROS_INFO_STREAM("mean angles:");
+            for (const auto& as : m_robot.target().meanAngles()) {
+                if (m_robot.target().lastSeen() - as.stamp < ros::Duration{1})
+                    ROS_INFO_STREAM(as.angle << " " << m_robot.target().lastSeen().toSec() - as.stamp.toSec());
+            }
+        }
 
         // estimate the target's position if the line of sight to the target is lost for 5 seconds
         if ((m_robot.status() == Robot::Status::LOS_LOST || m_robot.status() == Robot::Status::SEARCHING)
-            && ros::Time::now() - m_robot.target().lastSeen() < ros::Duration{5}) {
 
-            if (!m_robot.estimationStop())
-                m_robot.estimateTargetPosition(last_target_point.x, last_target_point.y, LOOP_FREQUENCY);
+            // TODO: add time constraint
+            && ros::Time::now() - m_robot.target().lastSeen() < ros::Duration{10}) {
+
+            m_robot.estimateTargetPosition(last_target_point.x, last_target_point.y, LOOP_FREQUENCY);
+
+            // center estimated target position
+            m_velocity_command_pub.publish(m_robot.velocityCommand(m_robot.estimatedTargetPosition().x,
+                                                                   m_robot.estimatedTargetPosition().y));
+
+            m_robot.reIdentify();
 
             m_visualization_pub.publish(last_point_marker);
             m_visualization_pub.publish(targetEstimationMarker());
-        }
-
-        // re-identify after 2 seconds
-        if (m_robot.status() == Robot::Status::SEARCHING) {
-            if (search_time == ros::Time{0})
-                search_time = ros::Time::now() + ros::Duration{2};
-            else {
-                if (ros::Time::now() > search_time)
-                    m_robot.reIdentify();
-            }
+            m_visualization_pub.publish(estimationAreaMarker());
         }
 
         // add new goal to goal list
@@ -212,7 +228,6 @@ void RobustPeopleFollower::skeletonCallback(const body_tracker_msgs::Skeleton::C
 
     // save data from message
     auto skeleton{body_tracker_msgs::Skeleton{}};
-
     skeleton.body_id = msg->body_id;
     skeleton.tracking_status = msg->tracking_status;
     skeleton.gesture = msg->gesture;
@@ -231,9 +246,7 @@ void RobustPeopleFollower::skeletonCallback(const body_tracker_msgs::Skeleton::C
     skeleton.joint_position_right_elbow = msg->joint_position_right_elbow;
     skeleton.joint_position_right_hand = msg->joint_position_right_hand;
 
-
-    auto id{skeleton.body_id};
-    auto p{std::find(m_robot.trackedPersons()->begin(), m_robot.trackedPersons()->end(), id)};
+    auto p{std::find(m_robot.trackedPersons()->begin(), m_robot.trackedPersons()->end(), skeleton.body_id)};
 
     // person is already in the list
     if (p != m_robot.trackedPersons()->end()) {
@@ -249,9 +262,9 @@ void RobustPeopleFollower::skeletonCallback(const body_tracker_msgs::Skeleton::C
 
             // check for gestures
             if (skeleton.gesture == 2 && p->correctHandHeight()) {
-                if (p->gestureBegin() == ros::Time{0}) {
+                if (p->gestureBegin() == ros::Time{0})
                     p->gestureBegin() = ros::Time::now();
-                }
+
             } else {
                 if (p->gestureBegin() != ros::Time{0}) {
 
@@ -259,7 +272,7 @@ void RobustPeopleFollower::skeletonCallback(const body_tracker_msgs::Skeleton::C
                     // target chooses to stop being followed
                     if (ros::Time::now().sec - p->gestureBegin().sec >= 3) {
                         p->target() = false;
-                        m_robot.target() = Person{};
+                        m_robot.target() = Person{body_tracker_msgs::Skeleton{}};
                         m_robot.status() = Robot::Status::WAITING;
                         m_robot.waypoints()->clear();
                         p->gestureBegin() = ros::Time{0};
@@ -271,10 +284,12 @@ void RobustPeopleFollower::skeletonCallback(const body_tracker_msgs::Skeleton::C
             // other persons
         else {
 
+            // FIXME: doesn't work properly
             // check for gestures
             if (skeleton.gesture == 2 && p->correctHandHeight()) {
                 if (p->gestureBegin() == ros::Time{0})
                     p->gestureBegin() = ros::Time::now();
+
             } else {
                 if (p->gestureBegin() != ros::Time{0}) {
 
@@ -490,6 +505,31 @@ visualization_msgs::Marker RobustPeopleFollower::targetEstimationMarker() const
     marker.color.a = 0.5;
     marker.color.b = 1.0;
     marker.mesh_resource = "package://robust_people_follower/meshes/standing.dae";
+
+    return marker;
+}
+
+
+visualization_msgs::Marker RobustPeopleFollower::estimationAreaMarker() const
+{
+    auto marker{visualization_msgs::Marker{}};
+    marker.header.frame_id = "odom";
+    marker.header.stamp = ros::Time::now();
+    marker.ns = "radius";
+    marker.type = visualization_msgs::Marker::SPHERE;
+    marker.action = visualization_msgs::Marker::ADD;
+    marker.lifetime = ros::Duration{0.3};
+    marker.pose.position.x = m_robot.estimatedTargetPosition().x;
+    marker.pose.position.y = m_robot.estimatedTargetPosition().y;
+    marker.pose.orientation.w = 1.0;
+
+    // scales the diameter, therefore we have to take the radius times two
+    marker.scale.x = m_robot.estimationRadius() * 2.0;
+    marker.scale.y = m_robot.estimationRadius() * 2.0;
+
+    marker.scale.z = 0.1;
+    marker.color.a = 0.5;
+    marker.color.b = 1.0;
 
     return marker;
 }

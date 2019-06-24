@@ -1,4 +1,7 @@
 <launch>
+
+    <!-- provides the skeleton information from tracked persons -->
     <node name="astra_body_tracker" pkg="astra_body_tracker" type="astra_body_tracker_node"/>
+
     <node name="robust_people_follower" pkg="robust_people_follower" type="robust_people_follower_node" output="screen"/>
 </launch>
