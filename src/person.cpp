@@ -103,16 +103,21 @@ void Person::calculateAngle()
 
     m_angles->emplace_back(AngleStamped{m_angle, ros::Time::now()});
 
+    // TODO: test
     // TODO: only use last 5 seconds
     // https://en.wikipedia.org/wiki/Mean_of_circular_quantities
+    auto count{0};
     auto sum_sin{0.0};
     auto sum_cos{0.0};
     for (const auto& as : *m_angles) {
-        sum_sin += sin(as.angle);
-        sum_cos += cos(as.angle);
+        if (ros::Time::now() - as.stamp <= ros::Duration{5}) {
+            sum_sin += sin(as.angle);
+            sum_cos += cos(as.angle);
+            ++count;
+        }
     }
 
-    m_mean_angle = atan2(((1.0 / m_angles->size()) * sum_sin), ((1.0 / m_angles->size()) * sum_cos));
+    m_mean_angle = atan2(((1.0 / count) * sum_sin), ((1.0 / count) * sum_cos));
     m_mean_angles.emplace_back(AngleStamped{m_mean_angle, ros::Time::now()});
 
     if (m_mean_angles.size() > 200)
@@ -125,20 +130,18 @@ void Person::calculateVelocity(const double t_frequency)
     m_velocity = sqrt(pow((m_old_pose.position.x - m_pose.position.x), 2) +
                       pow((m_old_pose.position.y - m_pose.position.y), 2)) / (1 / t_frequency);
 
-    auto it = m_velocities->begin();
-    while (it != m_velocities->end()) {
-        if (ros::Time::now() - it->stamp > ros::Duration{2})
-            it = m_velocities->erase(it);
-        else
-            ++it;
-    }
-
     m_velocities->emplace_back(VelocityStamped{m_velocity, ros::Time::now()});
 
+    auto count{0};
     auto sum{0.0};
-    for (const auto& vs : *m_velocities)
-        sum += vs.velocity;
-    m_mean_velocity = sum / m_velocities->size();
+    for (const auto& vs : *m_velocities) {
+        if (ros::Time::now() - vs.stamp <= ros::Duration{5}) {
+            sum += vs.velocity;
+            ++count;
+        }
+    }
+
+    m_mean_velocity = sum / count;
 
     // FIXME: not good, find better way to filter out high values
     if (m_mean_velocity < 7.0)

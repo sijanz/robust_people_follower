@@ -40,10 +40,10 @@
 
 
 Robot::Robot()
-        : m_status{Status::WAITING}, m_waypoint_list{new std::deque <geometry_msgs::PointStamped>{}},
+        : m_status{Status::WAITING}, m_waypoint_list{new std::deque<geometry_msgs::PointStamped>{}},
           m_last_waypoint_time{}, m_old_estimated_target_position{}, m_estimated_target_position{},
-          m_target{body_tracker_msgs::Skeleton{}},
-          m_tracked_persons{new std::vector <Person>}, m_current_linear{}, m_current_angular{} {}
+          m_target{body_tracker_msgs::Skeleton{}}, m_estimation_stop{false},
+          m_tracked_persons{new std::vector<Person>}, m_current_linear{}, m_current_angular{} {}
 
 
 void Robot::printInfo() const
@@ -148,11 +148,11 @@ geometry_msgs::Twist Robot::velocityCommand(const double FOLLOW_THRESHOLD)
         auto distance_to_goal{sqrt(pow(current_goal.point.x - m_pose.position.x, 2) +
                                    pow(current_goal.point.y - m_pose.position.y, 2))};
 
-        auto speed_linear{0.3};
+        auto speed_linear{0.4};
 
         if (m_status == Status::FOLLOWING) {
-            auto n{-(0.32 * ((FOLLOW_THRESHOLD / 1000) - 0.2))};
-            speed_linear = 0.32 * (distance_to_target / 1000) + n;
+//            auto n{-(0.32 * ((FOLLOW_THRESHOLD / 1000) - 0.2))};
+            speed_linear = 1.5 * (distance_to_target / 1000) - 2.7;
 
             // maximum of 0.6 m/s linear velocity
             if (speed_linear > 0.6)
@@ -191,15 +191,26 @@ geometry_msgs::Twist Robot::velocityCommand(const double t_x, const double t_y)
 {
     auto speed{geometry_msgs::Twist{}};
 
+    auto rotation{tf::Matrix3x3{
+            cos(m_angle), -sin(m_angle), m_pose.position.x,
+            sin(m_angle), cos(m_angle), m_pose.position.y,
+            0.0, 0.0, 1.0
+    }};
 
-    auto angle_to_point{std::atan2(std::abs(t_y - m_pose.position.y),
-                                   std::abs(t_x - m_pose.position.x))};
+    auto global_vector{tf::Vector3{t_x, t_y, 1.0}};
+    auto local_vector{rotation.inverse() * global_vector};
+
+    auto local_angle_to_goal{atan2(local_vector.y(), local_vector.x())};
 
 
-    if (angle_to_point > 0.0)
-        speed.angular.z = 1.0 * angle_to_point;
-    else if (angle_to_point < -0.0)
-        speed.angular.z = -1.0 * std::abs(angle_to_point);
+    // DEBUG
+    ROS_INFO_STREAM("velocityCommand: local_angle_to_goal: " << local_angle_to_goal);
+
+
+    if (local_angle_to_goal > 0.0)
+        speed.angular.z = 1.0 * local_angle_to_goal;
+    else if (local_angle_to_goal < 0.0)
+        speed.angular.z = -1.0 * std::abs(local_angle_to_goal);
 
     return speed;
 }
@@ -246,7 +257,7 @@ void Robot::estimateTargetPosition(const double t_last_x, const double t_last_y,
     auto delta_v{0.0};
     auto delta_t_v{0.0};
     for (int i = 0; i < m_target.meanVelocities().size() - 2; ++i) { // because last entry is way too high
-        if (m_target.lastSeen() - m_target.meanVelocities()[i].stamp < ros::Duration{1}) {
+        if (m_target.lastSeen() - m_target.meanVelocities()[i].stamp < ros::Duration{0.5}) {
             delta_v += m_target.meanVelocities()[i + 1].velocity - m_target.meanVelocities()[i].velocity;
             delta_t_v += m_target.meanVelocities()[i + 1].stamp.toSec() - m_target.meanVelocities()[i].stamp.toSec();
         }
@@ -263,7 +274,7 @@ void Robot::estimateTargetPosition(const double t_last_x, const double t_last_y,
     auto delta_a{0.0};
     auto delta_t_a{0.0};
     for (int i = 0; i < m_target.meanAngles().size() - 1; ++i) {
-        if (m_target.lastSeen() - m_target.meanAngles()[i].stamp < ros::Duration{1}) {
+        if (m_target.lastSeen() - m_target.meanAngles()[i].stamp < ros::Duration{0.5}) {
             delta_a += fmod(m_target.meanAngles()[i + 1].angle - m_target.meanAngles()[i].angle
                             + (3 * M_PI), 2 * M_PI) - M_PI;
             delta_t_a += m_target.meanAngles()[i + 1].stamp.toSec() - m_target.meanAngles()[i].stamp.toSec();
@@ -301,17 +312,15 @@ void Robot::estimateTargetPosition(const double t_last_x, const double t_last_y,
                                          + acceleration * sin(theta + yaw_rate * delta_t)
                                          + velocity * yaw_rate * cos(theta) - acceleration * sin(theta))};
 
-
-    // estimated velocity
-    auto estimated_velocity{0.0};
-
     if (!m_estimation_stop) {
         m_estimated_target_position.x = t_last_x + x_t;
         m_estimated_target_position.y = t_last_y + y_t;
 
-        estimated_velocity = sqrt(pow((m_old_estimated_target_position.x - m_estimated_target_position.x), 2)
-                                  + pow((m_old_estimated_target_position.y - m_estimated_target_position.y), 2))
-                             / (1 / t_frequency);
+
+        // estimated velocity
+        auto estimated_velocity{sqrt(pow((m_old_estimated_target_position.x - m_estimated_target_position.x), 2)
+                                     + pow((m_old_estimated_target_position.y - m_estimated_target_position.y), 2))
+                                / (1 / t_frequency)};
 
         // DEBUG
         ROS_INFO_STREAM(
@@ -322,16 +331,16 @@ void Robot::estimateTargetPosition(const double t_last_x, const double t_last_y,
         ROS_INFO_STREAM("estimateTargetPosition: estimated_velocity: " << estimated_velocity);
 
         m_old_estimated_target_position = m_estimated_target_position;
-    }
 
-    // stop estimation before velocity goes "negative"
-    if (estimated_velocity < 0.1 && (ros::Time::now() - m_target.lastSeen()) > ros::Duration{1})
-        m_estimation_stop = true;
+        // stop estimation before velocity goes "negative"
+        if (estimated_velocity < 0.1 && (ros::Time::now() - m_target.lastSeen()) > ros::Duration{0.2})
+            m_estimation_stop = true;
+    }
 
 
     // TODO: better mathematical way? (-> Kalman filter)
     // estimation radius
-    m_estimation_radius = 0.3 * velocity * delta_t;
+    m_estimation_radius = 0.75 * velocity * delta_t;
 
     // DEBUG
     ROS_INFO_STREAM("estimation radius: " << m_estimation_radius);
@@ -351,6 +360,7 @@ void Robot::reIdentify()
         if (distance(p.pose().position, m_estimated_target_position) < min_distance) {
             min_distance = distance(p.pose().position, m_estimated_target_position);
 
+            // person is in radius and nearest to the predicted position, set target
             if (distance(p.pose().position, m_estimated_target_position) < m_estimation_radius) {
                 m_waypoint_list->clear();
                 p.target() = true;

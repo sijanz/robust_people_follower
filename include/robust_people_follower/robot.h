@@ -99,7 +99,7 @@ private:
     ros::Time m_last_waypoint_time{};
     geometry_msgs::Point32 m_old_estimated_target_position{};
     geometry_msgs::Point32 m_estimated_target_position{};
-    bool m_estimation_stop{false};
+    bool m_estimation_stop{};
     double m_estimation_radius{};
 
     // instance of the target to follow

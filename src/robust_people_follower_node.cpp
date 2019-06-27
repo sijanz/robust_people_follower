@@ -93,42 +93,25 @@ void RobustPeopleFollower::runLoop()
             }
         }
 
-        // print out program information on the screen
-        debugPrintout();
-
         // set status to "LOS_LOST" if target is lost
-        if (m_robot.target().distance() == 0 && m_robot.status() == Robot::Status::FOLLOWING) {
+        if (m_robot.target().distance() == 0 && m_robot.status() == Robot::Status::FOLLOWING)
             m_robot.status() = Robot::Status::LOS_LOST;
 
-            // DEBUG
-            ROS_INFO_STREAM("target last seen: " << m_robot.target().lastSeen());
-            ROS_INFO_STREAM("mean velocities:");
-            for (const auto& vs : m_robot.target().meanVelocities()) {
-                if (m_robot.target().lastSeen() - vs.stamp < ros::Duration{1})
-                    ROS_INFO_STREAM(vs.velocity << " " << m_robot.target().lastSeen().toSec() - vs.stamp.toSec());
-            }
-
-            ROS_INFO_STREAM("mean angles:");
-            for (const auto& as : m_robot.target().meanAngles()) {
-                if (m_robot.target().lastSeen() - as.stamp < ros::Duration{1})
-                    ROS_INFO_STREAM(as.angle << " " << m_robot.target().lastSeen().toSec() - as.stamp.toSec());
-            }
-        }
-
-        // estimate the target's position if the line of sight to the target is lost for 5 seconds
-        if ((m_robot.status() == Robot::Status::LOS_LOST || m_robot.status() == Robot::Status::SEARCHING)
-
-            // TODO: add time constraint
-            && ros::Time::now() - m_robot.target().lastSeen() < ros::Duration{10}) {
-
-            m_robot.estimateTargetPosition(last_target_point.x, last_target_point.y, LOOP_FREQUENCY);
-
-            // center estimated target position
+        if (m_robot.status() == Robot::Status::SEARCHING)
             m_velocity_command_pub.publish(m_robot.velocityCommand(m_robot.estimatedTargetPosition().x,
                                                                    m_robot.estimatedTargetPosition().y));
 
+        // estimate the target's position if the line of sight to the target is lost for 5 seconds
+        if ((m_robot.status() == Robot::Status::LOS_LOST || m_robot.status() == Robot::Status::SEARCHING)
+            && ros::Time::now() - m_robot.target().lastSeen() < ros::Duration{10}) {
+
+            // estimate the target's position according to the CTRA model
+            m_robot.estimateTargetPosition(last_target_point.x, last_target_point.y, LOOP_FREQUENCY);
+
+            // re-identify the target if possible
             m_robot.reIdentify();
 
+            // publish markers relating to the estimation
             m_visualization_pub.publish(last_point_marker);
             m_visualization_pub.publish(targetEstimationMarker());
             m_visualization_pub.publish(estimationAreaMarker());
@@ -142,7 +125,7 @@ void RobustPeopleFollower::runLoop()
         updateTargetPath();
 
         // move the robot
-        if (m_robot.status() != Robot::Status::WAITING)
+        if (m_robot.status() == Robot::Status::FOLLOWING || m_robot.status() == Robot::Status::LOS_LOST)
             m_velocity_command_pub.publish(m_robot.velocityCommand(FOLLOW_THRESHOLD));
 
         // publish markers to view in RViz
@@ -158,6 +141,9 @@ void RobustPeopleFollower::runLoop()
         // delete persons that are no longer in line of sight
         m_robot.managePersonList();
 
+        // print out program information on the screen
+        debugPrintout();
+
         loop_rate.sleep();
     }
 }
@@ -168,7 +154,7 @@ void RobustPeopleFollower::runLoop()
  */
 void RobustPeopleFollower::debugPrintout()
 {
-    system("clear");
+//    system("clear");
 
     ROS_INFO_STREAM("ROS time: " << ros::Time::now().sec);
     m_robot.printInfo();
@@ -313,6 +299,7 @@ void RobustPeopleFollower::skeletonCallback(const body_tracker_msgs::Skeleton::C
 }
 
 
+// FIXME: memory leak
 void RobustPeopleFollower::publishPaths()
 {
     m_robot_path->header.seq = m_seq_robot;
@@ -333,10 +320,13 @@ void RobustPeopleFollower::publishPersonMarkers() const
 {
     auto person_markers{std::vector<visualization_msgs::Marker>{}};
     auto person_vectors{std::vector<visualization_msgs::Marker>{}};
+    auto person_mean_vectors{std::vector<visualization_msgs::Marker>{}};
 
     auto i{0};
     for (const auto& p : *m_robot.trackedPersons()) {
         if (p.distance() > 0) {
+
+            // person marker
             visualization_msgs::Marker marker{};
             marker.header.frame_id = "odom";
             marker.header.stamp = ros::Time::now();
@@ -367,6 +357,8 @@ void RobustPeopleFollower::publishPersonMarkers() const
 
             person_markers.emplace_back(marker);
 
+
+            // person vector
             auto vector{visualization_msgs::Marker{}};
             vector.header.frame_id = "odom";
             vector.header.stamp = ros::Time::now();
@@ -394,13 +386,48 @@ void RobustPeopleFollower::publishPersonMarkers() const
 
             person_vectors.emplace_back(vector);
 
+
+            // person mean vector
+            auto mean_vector{visualization_msgs::Marker{}};
+            mean_vector.header.frame_id = "odom";
+            mean_vector.header.stamp = ros::Time::now();
+            mean_vector.ns = "mean_vectors";
+            mean_vector.id = i;
+            mean_vector.type = visualization_msgs::Marker::ARROW;
+            mean_vector.action = visualization_msgs::Marker::ADD;
+            mean_vector.lifetime = ros::Duration{0.3};
+            mean_vector.pose.position.x = p.pose().position.x;
+            mean_vector.pose.position.y = p.pose().position.y;
+            mean_vector.pose.position.z = 1.3;
+
+            auto q_m{tf::createQuaternionFromYaw(p.meanAngle())};
+            mean_vector.pose.orientation.x = q_m.x();
+            mean_vector.pose.orientation.y = q_m.y();
+            mean_vector.pose.orientation.z = q_m.z();
+            mean_vector.pose.orientation.w = q_m.w();
+
+            mean_vector.scale.x = 0.0 + VECTOR_LENGTH_FACTOR * p.meanVelocity();
+            mean_vector.scale.y = 0.1;
+            mean_vector.scale.z = 0.1;
+
+            mean_vector.color.a = 1.0;
+            mean_vector.color.r = 1.0;
+            mean_vector.color.b = 1.0;
+
+            person_mean_vectors.emplace_back(mean_vector);
+
+
             ++i;
         }
     }
 
+
+    // publish markers
     for (const auto& m : person_markers)
         m_visualization_pub.publish(m);
     for (const auto& m : person_vectors)
+        m_visualization_pub.publish(m);
+    for (const auto& m : person_mean_vectors)
         m_visualization_pub.publish(m);
 }
 
