@@ -149,12 +149,9 @@ void RobustPeopleFollower::runLoop()
 }
 
 
-/**
- * @brief Prints out debugging information including the robot and the tracked persons.
- */
 void RobustPeopleFollower::debugPrintout()
 {
-//    system("clear");
+    system("clear");
 
     ROS_INFO_STREAM("ROS time: " << ros::Time::now().sec);
     m_robot.printInfo();
@@ -171,10 +168,6 @@ void RobustPeopleFollower::debugPrintout()
 }
 
 
-/**
- * @brief Sets odometry fields with data from the subscribed odometry topic.
- * @param msg the message from the subscribed topic
- */
 void RobustPeopleFollower::odometryCallback(const nav_msgs::Odometry::ConstPtr& msg)
 {
     auto pose{geometry_msgs::Pose{}};
@@ -205,10 +198,6 @@ void RobustPeopleFollower::odometryCallback(const nav_msgs::Odometry::ConstPtr& 
 }
 
 
-/**
- * @brief Manages the list of tracked persons with data received from the skeleton topic.
- * @param msg the message from the subscribed topic
- */
 void RobustPeopleFollower::skeletonCallback(const body_tracker_msgs::Skeleton::ConstPtr& msg)
 {
 
@@ -421,7 +410,6 @@ void RobustPeopleFollower::publishPersonMarkers() const
         }
     }
 
-
     // publish markers
     for (const auto& m : person_markers)
         m_visualization_pub.publish(m);
@@ -460,6 +448,7 @@ void RobustPeopleFollower::publishWaypoints() const
     line_list.color.r = 1.0;
     line_list.color.a = 1.0;
 
+    // publish waypoints
     for (const auto& w : *m_robot.waypoints()) {
         geometry_msgs::Point p{};
         p.x = w.point.x;
