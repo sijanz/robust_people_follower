@@ -5,49 +5,101 @@
 #include <tf/LinearMath/Quaternion.h>
 
 
+/**
+ * @brief This structure represents a velocity (in m/s) in combination with a timestamp.
+ */
 struct VelocityStamped
 {
-    // member variables
+    /*
+     * ********** MEMBER VARIABLES **********
+     */
+
+    /** @brief The velocity in m/s. */
     double velocity{};
+
+    /** @brief The timestamp in ROS-time. */
     ros::Time stamp{};
 
-    // constructors
-    inline VelocityStamped() = default;
-    inline VelocityStamped(double t_velocity, const ros::Time& t_stamp) : velocity(t_velocity), stamp(t_stamp) {}
 
-    // overloaded operators
+    /*
+     * ********** CONSTRUCTORS **********
+     */
+
+    /**
+     * @brief Default constructor, initializes the velocity and the timestamp to 0.
+     */
+    inline VelocityStamped() = default;
+
+
+    /**
+     * @brief Alternative constructor, initializes the member according to the parameters.
+     *
+     * @param t_velocity the velocity to set in m/s
+     * @param t_stamp the timestamp to set in ROS-time
+     */
+    inline VelocityStamped(double t_velocity, const ros::Time& t_stamp) : velocity{t_velocity}, stamp{t_stamp} {}
+
+
+    /*
+     * ********** OVERLOADED OPERATORS **********
+     */
+
+    /**
+     * @brief Overloaded "="-operator. Sets the members accordingly to the parameter.
+     *
+     * @param rhs the VelocityStamped-object to get the members from
+     * @return itself
+     */
     inline VelocityStamped& operator=(const VelocityStamped& rhs) = default;
 
+
+    /**
+     * @brief Overloaded "+="-operator. Adds up the velocity from the parameterized object.
+     *
+     * @param rhs the VelocityStamped-object to get the velocity from
+     * @return itself
+     */
     inline VelocityStamped& operator+=(const VelocityStamped& rhs)
     {
         velocity += rhs.velocity;
         return *this;
     }
-
-    inline VelocityStamped& operator/=(const size_t t_size)
-    {
-        velocity /= t_size;
-        return *this;
-    }
 };
 
 
+/**
+ * @brief This structure represents an angle (in radians) in combination with a timestamp.
+ */
 struct AngleStamped
 {
-    // member variables
+    /*
+     * ********** MEMBER VARIABLES **********
+     */
+
+    /** @brief The angle in radians. */
     double angle{};
+
+    /** @brief The timestamp in ROS-time. */
     ros::Time stamp{};
 
-    // constructors
-    AngleStamped() = default;
-    AngleStamped(const double t_angle, const ros::Time& t_stamp) : angle{t_angle}, stamp{t_stamp} {}
 
-    // overloaded operators
-    friend inline double operator+=(double& lhs, const AngleStamped& rhs)
-    {
-        lhs += rhs.angle;
-        return lhs;
-    }
+    /*
+     * ********** CONSTRUCTORS **********
+     */
+
+    /**
+    * @brief Default constructor, initializes the angle and the timestamp to 0.
+    */
+    AngleStamped() = default;
+
+
+    /**
+     * @brief Alternative constructor, initializes the member according to the parameters.
+     *
+     * @param t_angle the angle to set in radians
+     * @param t_stamp the timestamp to set in ROS-time
+     */
+    AngleStamped(const double t_angle, const ros::Time& t_stamp) : angle{t_angle}, stamp{t_stamp} {}
 };
 
 
