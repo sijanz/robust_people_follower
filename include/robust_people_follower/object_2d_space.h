@@ -42,32 +42,60 @@
 #include "robust_people_follower/stamped_types.h"
 
 
+/**
+ * @brief This class is the base class for objects TODO
+ */
 class Object2DSpace
 {
 public:
     // implicit default constructor
 
-    // pure virtual methods
+    /*
+     * ********** PURE VIRTUAL METHODS **********
+     */
     virtual void printInfo() const = 0;
     virtual void calculateAngle() = 0;
     virtual void calculateVelocity(double t_frequency) = 0;
 
-    // setters
+
+    /*
+     * ********** SETTERS **********
+     */
     inline geometry_msgs::Pose& pose() { return m_pose; }
     inline double& angle() { return m_angle; }
 
-    // getters
+
+    /*
+     * ********** GETTERS **********
+     */
     inline const geometry_msgs::Pose& pose() const { return m_pose; }
     inline const geometry_msgs::Pose& oldPose() const { return m_old_pose; }
     inline const double velocity() const { return m_velocity; }
     inline const double angle() const { return m_angle; }
 
+
+    /*
+     * ********** STANDARD METHODS **********
+     */
     inline void updatePose() { m_old_pose = m_pose; }
 
+
 protected:
+
+    /*
+     * ********** MEMBER VARIABLES **********
+     */
+
+    /** @brief The current pose (position plus orientation) of the object in 2D-space. */
     geometry_msgs::Pose m_pose{};
+
+    /** @brief The pose at t - 1 of the object in 2D-space. */
     geometry_msgs::Pose m_old_pose{};
+
+    /** @brief The velocity of the object in m/s. */
     double m_velocity{};
+
+    /** @brief The angle of the object in reference to the root of the coordinate system in radians. */
     double m_angle{};
 };
 
