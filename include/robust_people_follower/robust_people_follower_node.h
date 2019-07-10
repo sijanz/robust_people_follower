@@ -46,7 +46,10 @@
 #include <nav_msgs/Path.h>
 #include <visualization_msgs/Marker.h>
 
-#include "robot.h"
+#include "status_module.h"
+#include "tracking_module.h"
+#include "control_module.h"
+#include "recovery_module.h"
 
 
 /**
@@ -173,8 +176,14 @@ private:
     ros::Publisher m_visualization_pub{};
 
 
-    /** @brief Instance of the robot, does nearly all of the computation. */
-    Robot m_robot{};
+    /*
+     * ********** MODULES **********
+     */
+    StatusModule m_status_module{};
+    TrackingModule m_tracking_module{};
+    ControlModule m_control_module{};
+    RecoveryModule m_recovery_module{};
+
 
     /** @brief Stores the path of the robot to be published and viewed in RViz. */
     std::unique_ptr<nav_msgs::Path> m_robot_path{};

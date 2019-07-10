@@ -139,8 +139,11 @@ include_directories(
 ## The recommended prefix ensures that target names across packages don't collide
 add_executable(${PROJECT_NAME}_node
         src/robust_people_follower_node.cpp
-        src/robot.cpp
         src/person.cpp
+        src/status_module.cpp
+        src/tracking_module.cpp
+        src/control_module.cpp
+        src/recovery_module.cpp
         )
 
 ## Rename C++ executable without prefix
