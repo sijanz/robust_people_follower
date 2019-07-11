@@ -163,14 +163,6 @@ private:
      * second. */
     ros::Publisher m_velocity_command_pub{};
 
-    /** @brief Publishes the path of the robot to the "robust_people_follower/robot_path"-topic at a rate of 10 times
-     * per second. */
-    ros::Publisher m_robot_path_pub{};
-
-    /** @brief Publishes the path of the target to the "robust_people_follower/robot_path"-topic at a rate of 10 times
-     * per second. */
-    ros::Publisher m_target_path_pub{};
-
     /** @brief Publishes the tracked persons' vector and position to the "robust_people_follower/markers"-topic at a
      * rate of 10 times per second. */
     ros::Publisher m_visualization_pub{};
@@ -185,19 +177,6 @@ private:
     RecoveryModule m_recovery_module{};
 
 
-    /** @brief Stores the path of the robot to be published and viewed in RViz. */
-    std::unique_ptr<nav_msgs::Path> m_robot_path{};
-
-    /** @brief Stores the path of the target to be published and viewed in RViz. */
-    std::unique_ptr<nav_msgs::Path> m_target_path{};
-
-    /** @brief Sequence number used for the robot's path. */
-    uint32_t m_seq_robot{};
-
-    /** @brief Sequence number used for the target's path. */
-    uint32_t m_seq_target{};
-
-
     /*
      * ********** HELPER METHODS TO KEEP THE MAIN LOOP CLEAN **********
      */
@@ -207,12 +186,6 @@ private:
      * persons.
      */
     void debugPrintout();
-
-
-    /**
-     * @brief Publishes and updates the target's and the robot's path using the ROS node handle and the ROS publishers.
-     */
-    void publishPaths();
 
 
     /**
@@ -226,12 +199,6 @@ private:
      * @brief Publishes waypoint markers using the ROS node handle and the ROS visualization publisher.
      */
     void publishWaypoints() const;
-
-
-    /**
-     * @brief Add the recent pose of the target to the target's path.
-     */
-    void updateTargetPath();
 
 
     /**

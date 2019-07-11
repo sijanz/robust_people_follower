@@ -40,9 +40,7 @@
 
 
 RobustPeopleFollower::RobustPeopleFollower(const std::string& t_name)
-        : m_status_module{}, m_tracking_module{}, m_control_module{}, m_recovery_module{},
-          m_robot_path{new nav_msgs::Path{}}, m_target_path{new nav_msgs::Path{}},
-          m_seq_robot{}, m_seq_target{}
+        : m_status_module{}, m_tracking_module{}, m_control_module{}, m_recovery_module{}
 {
     m_name = t_name;
 
@@ -50,8 +48,6 @@ RobustPeopleFollower::RobustPeopleFollower(const std::string& t_name)
     m_skeleton_sub = m_nh.subscribe("/body_tracker/skeleton", 10, &RobustPeopleFollower::skeletonCallback, this);
 
     m_velocity_command_pub = m_nh.advertise<geometry_msgs::Twist>("/mobile_base/commands/velocity", 1000);
-    m_robot_path_pub = m_nh.advertise<nav_msgs::Path>("robust_people_follower/robot_path", 10);
-    m_target_path_pub = m_nh.advertise<nav_msgs::Path>("robust_people_follower/target_path", 10);
     m_visualization_pub = m_nh.advertise<visualization_msgs::Marker>("robust_people_follower/markers", 10);
 }
 
@@ -63,8 +59,6 @@ RobustPeopleFollower::~RobustPeopleFollower()
     m_odom_sub.shutdown();
     m_skeleton_sub.shutdown();
     m_velocity_command_pub.shutdown();
-    m_robot_path_pub.shutdown();
-    m_target_path_pub.shutdown();
     m_visualization_pub.shutdown();
 }
 
@@ -128,9 +122,6 @@ void RobustPeopleFollower::runLoop()
         if (m_tracking_module.target().distance() > FOLLOW_THRESHOLD)
             m_control_module.addNewWaypoint(m_tracking_module.target().pose(), 4);
 
-        // update path for target to be published
-        updateTargetPath();
-
         // move the robot
         if (m_status_module.status() == StatusModule::Status::FOLLOWING
             || m_status_module.status() == StatusModule::Status::LOS_LOST)
@@ -140,7 +131,6 @@ void RobustPeopleFollower::runLoop()
                                                                             m_tracking_module.target()));
 
         // publish markers to view in RViz
-        publishPaths();
         publishPersonMarkers();
         publishWaypoints();
 
@@ -189,21 +179,8 @@ void RobustPeopleFollower::odometryCallback(const nav_msgs::Odometry::ConstPtr& 
     pose.orientation.y = msg->pose.pose.orientation.y;
     pose.orientation.z = msg->pose.pose.orientation.z;
     pose.orientation.w = msg->pose.pose.orientation.w;
+
     m_status_module.pose() = pose;
-
-    auto pose_stamped{geometry_msgs::PoseStamped{}};
-    pose_stamped.header.seq = m_seq_robot;
-    pose_stamped.header.stamp = ros::Time::now();
-    pose_stamped.header.frame_id = "odom";
-    pose_stamped.pose.position.x = msg->pose.pose.position.x;
-    pose_stamped.pose.position.y = msg->pose.pose.position.y;
-    pose_stamped.pose.position.z = msg->pose.pose.position.z;
-    pose_stamped.pose.orientation.x = msg->pose.pose.orientation.x;
-    pose_stamped.pose.orientation.y = msg->pose.pose.orientation.y;
-    pose_stamped.pose.orientation.z = msg->pose.pose.orientation.z;
-    pose_stamped.pose.orientation.w = msg->pose.pose.orientation.w;
-    m_robot_path->poses.push_back(pose_stamped);
-
     m_status_module.calculateAngle();
     m_status_module.calculateVelocity(LOOP_FREQUENCY);
 }
@@ -300,23 +277,6 @@ void RobustPeopleFollower::skeletonCallback(const body_tracker_msgs::Skeleton::C
         // add new person if skeleton id is not in list
     else
         m_tracking_module.trackedPersons()->emplace_back(Person{skeleton});
-}
-
-
-// FIXME: memory leak
-void RobustPeopleFollower::publishPaths()
-{
-    m_robot_path->header.seq = m_seq_robot;
-    m_robot_path->header.stamp = ros::Time::now();
-    m_robot_path->header.frame_id = "odom";
-    m_robot_path_pub.publish(*m_robot_path);
-    ++m_seq_robot;
-
-    m_target_path->header.seq = m_seq_target;
-    m_target_path->header.stamp = ros::Time::now();
-    m_target_path->header.frame_id = "odom";
-    m_target_path_pub.publish(*m_target_path);
-    ++m_seq_target;
 }
 
 
@@ -480,20 +440,6 @@ void RobustPeopleFollower::publishWaypoints() const
     // publish markers
     m_visualization_pub.publish(line_strip);
     m_visualization_pub.publish(line_list);
-}
-
-
-void RobustPeopleFollower::updateTargetPath()
-{
-    if (m_tracking_module.target().distance() > 0) {
-        auto pose_stamped{geometry_msgs::PoseStamped{}};
-        pose_stamped.header.seq = m_seq_target;
-        pose_stamped.header.stamp = ros::Time::now();
-        pose_stamped.header.frame_id = "odom";
-        pose_stamped.pose.position.x = m_tracking_module.target().pose().position.x;
-        pose_stamped.pose.position.y = m_tracking_module.target().pose().position.y;
-        m_target_path->poses.push_back(pose_stamped);
-    }
 }
 
 
