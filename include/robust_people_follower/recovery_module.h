@@ -50,7 +50,6 @@ public:
 
     // getters
     inline const geometry_msgs::Point32 predictedTargetPosition() const { return m_predicted_target_position; }
-    inline const bool predictionStop() const { return m_prediction_stop; }
     inline const double predictionRadius() const { return m_prediction_radius; }
 
     void predictTargetPosition(const Person& t_target, double t_last_x, double t_last_y, double t_frequency);

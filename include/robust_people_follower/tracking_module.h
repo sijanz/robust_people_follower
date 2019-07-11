@@ -55,6 +55,8 @@ public:
     inline const std::shared_ptr<std::vector<Person>> trackedPersons() const { return m_tracked_persons; }
 
     // TODO: methods for managing input data
+    void processSkeletonData(const body_tracker_msgs::Skeleton& t_skeleton, const geometry_msgs::Pose& t_robot_pose,
+                             StatusModule::Status& t_status);
     void managePersonList();
 
 private:

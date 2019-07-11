@@ -80,14 +80,6 @@ void RobustPeopleFollower::runLoop()
         // process callbacks
         ros::spinOnce();
 
-        // set the target's variables
-        for (auto& p : *m_tracking_module.trackedPersons()) {
-            if (p.target()) {
-                m_tracking_module.target() = p;
-                break;
-            }
-        }
-
         // set status to "LOS_LOST" if target is lost
         if (m_tracking_module.target().distance() == 0 && m_status_module.status() == StatusModule::Status::FOLLOWING)
             m_status_module.status() = StatusModule::Status::LOS_LOST;
@@ -209,74 +201,7 @@ void RobustPeopleFollower::skeletonCallback(const body_tracker_msgs::Skeleton::C
     skeleton.joint_position_right_elbow = msg->joint_position_right_elbow;
     skeleton.joint_position_right_hand = msg->joint_position_right_hand;
 
-    auto p{std::find(m_tracking_module.trackedPersons()->begin(), m_tracking_module.trackedPersons()->end(),
-                     skeleton.body_id)};
-
-    // person is already in the list
-    if (p != m_tracking_module.trackedPersons()->end()) {
-
-        // update information
-        p->skeleton() = skeleton;
-        p->calculateAbsolutePosition(m_status_module.pose().position.x, m_status_module.pose().position.y,
-                                     m_status_module.angle());
-        p->calculateAngle();
-        p->calculateVelocity(LOOP_FREQUENCY);
-
-        // target
-        if (p->target()) {
-
-            // check for gestures
-            if (skeleton.gesture == 2 && p->correctHandHeight()) {
-                if (p->gestureBegin() == ros::Time{0})
-                    p->gestureBegin() = ros::Time::now();
-
-            } else {
-                if (p->gestureBegin() != ros::Time{0}) {
-
-                    /*
-                    // TODO: figure out how to play a sound
-                    // target chooses to stop being followed
-                    if (ros::Time::now().sec - p->gestureBegin().sec >= 3) {
-                        p->target() = false;
-                        m_robot.target() = Person{body_tracker_msgs::Skeleton{}};
-                        m_robot.status() = Robot::Status::WAITING;
-                        m_robot.waypoints()->clear();
-                        p->gestureBegin() = ros::Time{0};
-                    }
-                     */
-                }
-            }
-        }
-
-            // other persons
-        else {
-
-            // FIXME: doesn't work properly
-            // check for gestures
-            if (skeleton.gesture == 2 && p->correctHandHeight()) {
-                if (p->gestureBegin() == ros::Time{0})
-                    p->gestureBegin() = ros::Time::now();
-
-            } else {
-                if (p->gestureBegin() != ros::Time{0}) {
-
-                    // TODO: figure out how to play a sound
-                    // new target selected after 3 seconds of closing both hands
-                    if (ros::Time::now().sec - p->gestureBegin().sec >= 3) {
-                        p->target() = true;
-                        m_status_module.status() = StatusModule::Status::FOLLOWING;
-
-                        // reset gesture beginning time
-                        p->gestureBegin() = ros::Time{0};
-                    }
-                }
-            }
-        }
-    }
-
-        // add new person if skeleton id is not in list
-    else
-        m_tracking_module.trackedPersons()->emplace_back(Person{skeleton});
+    m_tracking_module.processSkeletonData(skeleton, m_status_module.pose(), m_status_module.status());
 }
 
 
