@@ -58,12 +58,13 @@ public:
     void calculateVelocity(double t_frequency) override;
     void printInfo() const override;
 
-
     // setters
     inline StatusModule::Status& status() { return m_status; }
 
     // getters
     inline const StatusModule::Status status() const { return m_status; }
+
+    void processOdometryData(const geometry_msgs::Pose& t_pose, double t_frequency);
 
 private:
     Status m_status{};

@@ -185,7 +185,11 @@ private:
      * @brief Prints out information about the robot's and the target's status as well as information about tracked
      * persons.
      */
-    void debugPrintout();
+    void debugPrintout() const;
+
+    void followTarget();
+
+    void searchForTarget(const geometry_msgs::Point32& t_last_target_position);
 
 
     /**
@@ -204,9 +208,10 @@ private:
     /**
      * @brief Returns a visualization marker that represents the position the target was last seen.
      *
+     * @param t_last_target_position TODO
      * @return a marker to the target's last position
      */
-    visualization_msgs::Marker lastPointMarker() const;
+    visualization_msgs::Marker lastPointMarker(const geometry_msgs::Point32& t_last_target_position) const;
 
 
     /**

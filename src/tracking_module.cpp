@@ -61,9 +61,11 @@ void TrackingModule::processSkeletonData(const body_tracker_msgs::Skeleton& t_sk
         p->calculateAbsolutePosition(t_robot_pose.position.x, t_robot_pose.position.y, robot_angle);
         p->calculateAngle();
         p->calculateVelocity(10.0);
+        p->updatePose();
 
         // target
         if (p->target()) {
+            m_target = *p;
 
             // check for gestures
             if (t_skeleton.gesture == 2 && p->correctHandHeight()) {

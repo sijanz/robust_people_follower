@@ -62,10 +62,10 @@ void StatusModule::printInfo() const
 {
     auto status_string{""};
     switch (m_status) {
-        case 0:
+        case WAITING:
             status_string = "WAITING";
             break;
-        case 1:
+        case FOLLOWING:
             status_string = "FOLLOWING";
             break;
         default:
@@ -83,4 +83,13 @@ void StatusModule::printInfo() const
     ROS_INFO("  predicted target position:");
 //    ROS_INFO("    x: %f", m_estimated_target_position.x);
 //    ROS_INFO("    y: %f\n", m_estimated_target_position.y);
+}
+
+
+void StatusModule::processOdometryData(const geometry_msgs::Pose& t_pose, const double t_frequency)
+{
+    m_pose = t_pose;
+    calculateAngle();
+    calculateVelocity(t_frequency);
+    updatePose();
 }

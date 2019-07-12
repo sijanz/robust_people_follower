@@ -103,14 +103,12 @@ void Person::calculateAngle()
 
     m_angles->emplace_back(AngleStamped{m_angle, ros::Time::now()});
 
-    // TODO: test
-    // TODO: only use last 5 seconds
     // https://en.wikipedia.org/wiki/Mean_of_circular_quantities
     auto count{0};
     auto sum_sin{0.0};
     auto sum_cos{0.0};
     for (const auto& as : *m_angles) {
-        if (ros::Time::now() - as.stamp <= ros::Duration{5}) {
+        if (ros::Time::now() - as.stamp <= ros::Duration{2}) {
             sum_sin += sin(as.angle);
             sum_cos += cos(as.angle);
             ++count;
@@ -130,12 +128,14 @@ void Person::calculateVelocity(const double t_frequency)
     m_velocity = sqrt(pow((m_old_pose.position.x - m_pose.position.x), 2) +
                       pow((m_old_pose.position.y - m_pose.position.y), 2)) / (1 / t_frequency);
 
-    m_velocities->emplace_back(VelocityStamped{m_velocity, ros::Time::now()});
+    // FIXME: ugly
+    if (m_velocity > 5.0)
+        m_velocities->emplace_back(VelocityStamped{m_velocity, ros::Time::now()});
 
     auto count{0};
     auto sum{0.0};
     for (const auto& vs : *m_velocities) {
-        if (ros::Time::now() - vs.stamp <= ros::Duration{5}) {
+        if (ros::Time::now() - vs.stamp <= ros::Duration{2}) {
             sum += vs.velocity;
             ++count;
         }
