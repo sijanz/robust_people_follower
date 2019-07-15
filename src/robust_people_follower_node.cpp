@@ -270,7 +270,6 @@ void RobustPeopleFollower::publishPersonMarkers() const
             person_markers.emplace_back(marker);
 
 
-            /*
             // person vector
             auto vector{visualization_msgs::Marker{}};
             vector.header.frame_id = "odom";
@@ -298,9 +297,9 @@ void RobustPeopleFollower::publishPersonMarkers() const
             vector.color.r = 1.0;
 
             person_vectors.emplace_back(vector);
-             */
 
 
+            /*
             // person mean vector
             auto mean_vector{visualization_msgs::Marker{}};
             mean_vector.header.frame_id = "odom";
@@ -329,6 +328,7 @@ void RobustPeopleFollower::publishPersonMarkers() const
             mean_vector.color.b = 1.0;
 
             person_mean_vectors.emplace_back(mean_vector);
+             */
 
 
             ++i;

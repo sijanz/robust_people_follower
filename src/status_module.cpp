@@ -68,6 +68,9 @@ void StatusModule::printInfo() const
         case FOLLOWING:
             status_string = "FOLLOWING";
             break;
+        case LOS_LOST:
+            status_string = "LOS_LOST";
+            break;
         default:
             status_string = "SEARCHING";
             break;

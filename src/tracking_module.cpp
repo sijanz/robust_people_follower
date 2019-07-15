@@ -57,7 +57,14 @@ void TrackingModule::processSkeletonData(const body_tracker_msgs::Skeleton& t_sk
 
         auto q{tf::Quaternion{t_robot_pose.orientation.x, t_robot_pose.orientation.y, t_robot_pose.orientation.z,
                               t_robot_pose.orientation.w}};
-        auto robot_angle{q.getAngle()};
+
+        auto m{tf::Matrix3x3{q}};
+
+        auto roll{0.0}, pitch{0.0}, theta{0.0};
+        m.getRPY(roll, pitch, theta);
+
+        auto robot_angle{theta};
+
         p->calculateAbsolutePosition(t_robot_pose.position.x, t_robot_pose.position.y, robot_angle);
         p->calculateAngle();
         p->calculateVelocity(10.0);

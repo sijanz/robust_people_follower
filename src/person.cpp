@@ -66,17 +66,19 @@ void Person::printVerboseInfo() const
 
 void Person::calculateAbsolutePosition(const double t_robot_x, const double t_robot_y, const double t_robot_angle)
 {
-    auto rotation{tf::Matrix3x3{
-            cos(t_robot_angle), -sin(t_robot_angle), t_robot_x,
-            sin(t_robot_angle), cos(t_robot_angle), t_robot_y,
-            0.0, 0.0, 1.0
-    }};
+    if (m_skeleton.centerOfMass.x > 0) {
+        auto rotation{tf::Matrix3x3{
+                cos(t_robot_angle), -sin(t_robot_angle), t_robot_x,
+                sin(t_robot_angle), cos(t_robot_angle), t_robot_y,
+                0.0, 0.0, 1.0
+        }};
 
-    auto local_vector{tf::Vector3{(m_skeleton.centerOfMass.x / 1000), (m_skeleton.centerOfMass.y / 1000), 1.0}};
-    auto global_vector{rotation * local_vector};
+        auto local_vector{tf::Vector3{(m_skeleton.centerOfMass.x / 1000), (m_skeleton.centerOfMass.y / 1000), 1.0}};
+        auto global_vector{rotation * local_vector};
 
-    m_pose.position.x = global_vector.x();
-    m_pose.position.y = global_vector.y();
+        m_pose.position.x = global_vector.x();
+        m_pose.position.y = global_vector.y();
+    }
 }
 
 
@@ -129,7 +131,7 @@ void Person::calculateVelocity(const double t_frequency)
                       pow((m_old_pose.position.y - m_pose.position.y), 2)) / (1 / t_frequency);
 
     // FIXME: ugly
-    if (m_velocity > 5.0)
+    if (m_velocity < 5.0)
         m_velocities->emplace_back(VelocityStamped{m_velocity, ros::Time::now()});
 
     auto count{0};

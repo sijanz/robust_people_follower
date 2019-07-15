@@ -142,13 +142,7 @@ void RecoveryModule::predictTargetPosition(const Person& t_target, const double 
             m_prediction_stop = true;
     }
 
-
-    // TODO: better mathematical way? (-> Kalman filter)
-    // estimation radius
-    m_prediction_radius = 0.75 * velocity * delta_t;
-
-    // DEBUG
-    ROS_INFO_STREAM("estimation radius: " << m_prediction_radius);
+    m_prediction_radius = velocity * delta_t;
 }
 
 
