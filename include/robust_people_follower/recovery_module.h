@@ -52,7 +52,7 @@ public:
     inline const geometry_msgs::Point32 predictedTargetPosition() const { return m_predicted_target_position; }
     inline const double predictionRadius() const { return m_prediction_radius; }
 
-    void predictTargetPosition(const Person& t_target, double t_last_x, double t_last_y, double t_frequency);
+    void predictTargetPosition(const Person& t_target, double t_frequency);
     void reIdentify(Person& t_target, const std::shared_ptr<std::vector<Person>>& t_tracked_persons,
                     const std::shared_ptr<std::deque<geometry_msgs::PointStamped>>& t_waypoint_list,
                     StatusModule::Status& t_status);

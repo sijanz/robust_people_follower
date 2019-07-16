@@ -95,16 +95,17 @@ void Person::calculateAngle()
     m_angle = std::atan2((m_pose.position.y - m_old_pose.position.y),
                          (m_pose.position.x - m_old_pose.position.x));
 
+    // erase angles which stamps are older than 2 seconds
     auto it = m_angles->begin();
     while (it != m_angles->end()) {
         if (ros::Time::now() - it->stamp > ros::Duration{2})
             it = m_angles->erase(it);
-        else
-            ++it;
+        ++it;
     }
 
     m_angles->emplace_back(AngleStamped{m_angle, ros::Time::now()});
 
+    // calculate a new mean angle and place it in the vector
     // https://en.wikipedia.org/wiki/Mean_of_circular_quantities
     auto count{0};
     auto sum_sin{0.0};
@@ -130,10 +131,19 @@ void Person::calculateVelocity(const double t_frequency)
     m_velocity = sqrt(pow((m_old_pose.position.x - m_pose.position.x), 2) +
                       pow((m_old_pose.position.y - m_pose.position.y), 2)) / (1 / t_frequency);
 
+    // erase velocities which stamps are older than 2 seconds
+    auto it = m_velocities->begin();
+    while (it != m_velocities->end()) {
+        if (ros::Time::now() - it->stamp > ros::Duration{2})
+            it = m_velocities->erase(it);
+        ++it;
+    }
+
     // FIXME: ugly
     if (m_velocity < 5.0)
         m_velocities->emplace_back(VelocityStamped{m_velocity, ros::Time::now()});
 
+    // calculate and add new mean velocity
     auto count{0};
     auto sum{0.0};
     for (const auto& vs : *m_velocities) {

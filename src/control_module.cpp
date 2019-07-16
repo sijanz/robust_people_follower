@@ -84,6 +84,7 @@ geometry_msgs::Twist ControlModule::velocityCommand(StatusModule::Status& t_stat
     if (t_status == StatusModule::Status::FOLLOWING && distance_to_target < FOLLOW_THRESHOLD)
         m_waypoint_list->clear();
 
+    // set status to SEARCHING if waypoint list is empty
     if (t_status == StatusModule::Status::LOS_LOST && m_waypoint_list->empty())
         t_status = StatusModule::Status::SEARCHING;
 
@@ -158,11 +159,11 @@ geometry_msgs::Twist ControlModule::velocityCommand(StatusModule::Status& t_stat
         speed.linear.x = speed_linear;
     }
 
-        // waypoint list is empty
-    else
+    // waypoint list is empty
+//    else
 //        t_status = StatusModule::Status::SEARCHING;
 
-        m_current_linear = speed.linear.x;
+    m_current_linear = speed.linear.x;
     m_current_angular = speed.angular.z;
 
     ROS_INFO_STREAM("linear speed: " << speed.linear.x << ", angular speed: " << speed.angular.z);

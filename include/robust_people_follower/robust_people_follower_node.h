@@ -131,11 +131,14 @@ private:
     /** @brief The frequency in which the main loop is running. */
     static constexpr double LOOP_FREQUENCY{10.0};
 
-    /** @brief The factor of the length of a person's vector. */
-    static constexpr double VECTOR_LENGTH_FACTOR{1.5};
-
     /** @brief The distance threshold after that the target is being followed (in mm). */
     static constexpr double FOLLOW_THRESHOLD{1800};
+
+    /** @brief The time period to re-identify the target. */
+    static constexpr int SEARCH_TIMEOUT{10};
+
+    /** @brief The factor of the length of a person's vector. */
+    static constexpr double VECTOR_LENGTH_FACTOR{1.5};
 
     /** @brief The name of the node as represented in ROS. */
     std::string m_name{};
@@ -171,6 +174,8 @@ private:
     /*
      * ********** MODULES **********
      */
+
+    // TODO: comment
     StatusModule m_status_module{};
     TrackingModule m_tracking_module{};
     ControlModule m_control_module{};
@@ -187,9 +192,19 @@ private:
      */
     void debugPrintout() const;
 
+
+    /**
+     * @brief Adds a new waypoint if the target is above the following threshold and then follows the target in
+     * dependence of the distance.
+     */
     void followTarget();
 
-    void searchForTarget(const geometry_msgs::Point32& t_last_target_position);
+
+    /**
+     * @brief Predicts the target's position, moves the robot to the last known position of the target and tries to
+     * re-identify the target.
+     */
+    void searchForTarget();
 
 
     /**
@@ -205,29 +220,32 @@ private:
     void publishWaypoints() const;
 
 
+    /*
+     * ********** RVIZ MARKERS **********
+     */
+
     /**
      * @brief Returns a visualization marker that represents the position the target was last seen.
      *
-     * @param t_last_target_position TODO
      * @return a marker to the target's last position
      */
-    visualization_msgs::Marker lastPointMarker(const geometry_msgs::Point32& t_last_target_position) const;
+    visualization_msgs::Marker lastPositionMarker() const;
 
 
     /**
-     * @brief Returns a visualization marker that represents the current position of the estimated target.
+     * @brief Returns a visualization marker that represents the current position of the predicted target.
      *
-     * @return a marker to the target's estimated position
+     * @return a marker to the target's predicted position
      */
-    visualization_msgs::Marker targetEstimationMarker() const;
+    visualization_msgs::Marker predictedPositionMarker() const;
 
 
     /**
      * @brief Returns a marker of the area in which the target is assumed to be.
      *
-     * @return a marker to the target's assumed position
+     * @return a marker to the target's assumed area
      */
-    visualization_msgs::Marker estimationAreaMarker() const;
+    visualization_msgs::Marker predictionRadiusMarker() const;
 };
 
 

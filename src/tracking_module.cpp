@@ -45,7 +45,8 @@ TrackingModule::TrackingModule() : m_target{}
 
 
 void TrackingModule::processSkeletonData(const body_tracker_msgs::Skeleton& t_skeleton,
-                                         const geometry_msgs::Pose& t_robot_pose, StatusModule::Status& t_status)
+                                         const geometry_msgs::Pose& t_robot_pose, StatusModule::Status& t_status,
+                                         const double t_loop_frequency)
 {
     auto p{std::find(m_tracked_persons->begin(), m_tracked_persons->end(), t_skeleton.body_id)};
 
@@ -57,43 +58,39 @@ void TrackingModule::processSkeletonData(const body_tracker_msgs::Skeleton& t_sk
 
         auto q{tf::Quaternion{t_robot_pose.orientation.x, t_robot_pose.orientation.y, t_robot_pose.orientation.z,
                               t_robot_pose.orientation.w}};
-
         auto m{tf::Matrix3x3{q}};
-
         auto roll{0.0}, pitch{0.0}, theta{0.0};
         m.getRPY(roll, pitch, theta);
-
         auto robot_angle{theta};
 
         p->calculateAbsolutePosition(t_robot_pose.position.x, t_robot_pose.position.y, robot_angle);
         p->calculateAngle();
-        p->calculateVelocity(10.0);
+        p->calculateVelocity(t_loop_frequency);
         p->updatePose();
 
         // target
         if (p->target()) {
+
+            // update target information
             m_target = *p;
 
             // check for gestures
             if (t_skeleton.gesture == 2 && p->correctHandHeight()) {
                 if (p->gestureBegin() == ros::Time{0})
                     p->gestureBegin() = ros::Time::now();
+                /*
+                else {
 
-            } else {
-                if (p->gestureBegin() != ros::Time{0}) {
-
-                    /*
-                    // TODO: figure out how to play a sound
-                    // target chooses to stop being followed
+                 // TODO: test, clear waypoints
+                    // target chooses to not being followed anymore
                     if (ros::Time::now().sec - p->gestureBegin().sec >= 3) {
                         p->target() = false;
-                        m_robot.target() = Person{body_tracker_msgs::Skeleton{}};
-                        m_robot.status() = Robot::Status::WAITING;
-                        m_robot.waypoints()->clear();
+                        m_target = Person{body_tracker_msgs::Skeleton{}};
+                        t_status = StatusModule::Status::WAITING;
                         p->gestureBegin() = ros::Time{0};
                     }
-                     */
                 }
+                 */
             }
         }
 
@@ -105,11 +102,8 @@ void TrackingModule::processSkeletonData(const body_tracker_msgs::Skeleton& t_sk
             if (t_skeleton.gesture == 2 && p->correctHandHeight()) {
                 if (p->gestureBegin() == ros::Time{0})
                     p->gestureBegin() = ros::Time::now();
+                else {
 
-            } else {
-                if (p->gestureBegin() != ros::Time{0}) {
-
-                    // TODO: figure out how to play a sound
                     // new target selected after 3 seconds of closing both hands
                     if (ros::Time::now().sec - p->gestureBegin().sec >= 3) {
                         p->target() = true;

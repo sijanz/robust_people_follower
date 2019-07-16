@@ -39,8 +39,7 @@
 #include "robust_people_follower/status_module.h"
 
 
-void RecoveryModule::predictTargetPosition(const Person& t_target, const double t_last_x, const double t_last_y,
-                                           const double t_frequency)
+void RecoveryModule::predictTargetPosition(const Person& t_target, const double t_frequency)
 {
     // velocity
     auto velocity{0.0};
@@ -118,8 +117,8 @@ void RecoveryModule::predictTargetPosition(const Person& t_target, const double 
                                          + velocity * yaw_rate * cos(theta) - acceleration * sin(theta))};
 
     if (!m_prediction_stop) {
-        m_predicted_target_position.x = t_last_x + x_t;
-        m_predicted_target_position.y = t_last_y + y_t;
+        m_predicted_target_position.x = t_target.pose().position.x + x_t;
+        m_predicted_target_position.y = t_target.pose().position.y + y_t;
 
 
         // estimated velocity
@@ -128,12 +127,11 @@ void RecoveryModule::predictTargetPosition(const Person& t_target, const double 
                                 / (1 / t_frequency)};
 
         // DEBUG
-        ROS_INFO_STREAM(
-                "estimateTargetPosition: estimated old position: [" << m_old_predicted_target_position.x << ", " <<
-                                                                    m_old_predicted_target_position.y << "]");
-        ROS_INFO_STREAM("estimateTargetPosition: estimated position: [" << m_predicted_target_position.x << ", " <<
-                                                                        m_predicted_target_position.y << "]");
-        ROS_INFO_STREAM("estimateTargetPosition: estimated_velocity: " << estimated_velocity);
+        ROS_INFO_STREAM("estimated old position: [" << m_old_predicted_target_position.x << ", " <<
+                                                    m_old_predicted_target_position.y << "]");
+        ROS_INFO_STREAM("estimated position: [" << m_predicted_target_position.x << ", " <<
+                                                m_predicted_target_position.y << "]");
+        ROS_INFO_STREAM("estimated_velocity: " << estimated_velocity);
 
         m_old_predicted_target_position = m_predicted_target_position;
 

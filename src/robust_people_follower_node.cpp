@@ -69,15 +69,10 @@ void RobustPeopleFollower::runLoop()
 
     while (ros::ok()) {
 
-        // set the point where the target is last seen
-        auto last_target_position{geometry_msgs::Point32{}};
-        last_target_position.x = m_tracking_module.target().oldPose().position.x;
-        last_target_position.y = m_tracking_module.target().oldPose().position.y;
-
         // process callbacks
         ros::spinOnce();
 
-        // no data for the target received, set the robot's status to LOS_LOST
+        // target is lost, set status to LOS_LOST
         if (m_status_module.status() == StatusModule::Status::FOLLOWING && m_tracking_module.target().distance() == 0.0)
             m_status_module.status() = StatusModule::Status::LOS_LOST;
 
@@ -87,10 +82,10 @@ void RobustPeopleFollower::runLoop()
                 followTarget();
                 break;
             case StatusModule::Status::LOS_LOST:
-                searchForTarget(last_target_position);
+                searchForTarget();
                 break;
             case StatusModule::Status::SEARCHING:
-                searchForTarget(last_target_position);
+                searchForTarget();
                 break;
             default:
                 break;
@@ -118,7 +113,6 @@ void RobustPeopleFollower::debugPrintout() const
     ROS_INFO_STREAM("ROS time: " << ros::Time::now().sec);
     m_status_module.printInfo();
 
-    // TODO: to Robot
     ROS_INFO_STREAM("target information:");
     m_tracking_module.target().printVerboseInfo();
 
@@ -131,7 +125,6 @@ void RobustPeopleFollower::debugPrintout() const
 
 void RobustPeopleFollower::followTarget()
 {
-
     // add a new waypoint if target is above the follow threshold
     if (m_tracking_module.target().distance() > FOLLOW_THRESHOLD)
         m_control_module.addNewWaypoint(m_tracking_module.target().pose(), 4);
@@ -144,16 +137,14 @@ void RobustPeopleFollower::followTarget()
 }
 
 
-void RobustPeopleFollower::searchForTarget(const geometry_msgs::Point32& t_last_target_position)
+void RobustPeopleFollower::searchForTarget()
 {
+    if (ros::Time::now() - m_tracking_module.target().lastSeen() < ros::Duration{SEARCH_TIMEOUT}) {
 
-    // estimate the target's position if the line of sight to the target is lost for 10 seconds
-    if (ros::Time::now() - m_tracking_module.target().lastSeen() < ros::Duration{10}) {
+        // predict the target's position according to the CTRA model
+        m_recovery_module.predictTargetPosition(m_tracking_module.target(), LOOP_FREQUENCY);
 
-        // estimate the target's position according to the CTRA model
-        m_recovery_module.predictTargetPosition(m_tracking_module.target(), t_last_target_position.x,
-                                                t_last_target_position.y, LOOP_FREQUENCY);
-
+        // look at the predicted position if the last waypoint is reached
         if (m_control_module.waypoints()->empty()) {
             m_status_module.status() = StatusModule::Status::SEARCHING;
 
@@ -162,6 +153,8 @@ void RobustPeopleFollower::searchForTarget(const geometry_msgs::Point32& t_last_
                     m_status_module.pose(),
                     m_recovery_module.predictedTargetPosition().x,
                     m_recovery_module.predictedTargetPosition().y));
+
+            // replicate the target's path
         } else {
             m_velocity_command_pub.publish(m_control_module.velocityCommand(m_status_module.status(),
                                                                             m_status_module.angle(),
@@ -170,13 +163,14 @@ void RobustPeopleFollower::searchForTarget(const geometry_msgs::Point32& t_last_
         }
 
         // re-identify the target if possible
-        m_recovery_module.reIdentify(m_tracking_module.target(), m_tracking_module.trackedPersons(),
-                                     m_control_module.waypoints(), m_status_module.status());
+        if (ros::Time::now() - m_tracking_module.target().lastSeen() > ros::Duration{0.1})
+            m_recovery_module.reIdentify(m_tracking_module.target(), m_tracking_module.trackedPersons(),
+                                         m_control_module.waypoints(), m_status_module.status());
 
         // publish prediction markers
-        m_visualization_pub.publish(lastPointMarker(t_last_target_position));
-        m_visualization_pub.publish(targetEstimationMarker());
-        m_visualization_pub.publish(estimationAreaMarker());
+        m_visualization_pub.publish(lastPositionMarker());
+        m_visualization_pub.publish(predictedPositionMarker());
+        m_visualization_pub.publish(predictionRadiusMarker());
 
         // reset the robot's status to WAITING if the target is lost for more than 10 seconds
     } else {
@@ -188,6 +182,7 @@ void RobustPeopleFollower::searchForTarget(const geometry_msgs::Point32& t_last_
 
 void RobustPeopleFollower::odometryCallback(const nav_msgs::Odometry::ConstPtr& msg)
 {
+    // save data from message
     auto pose{geometry_msgs::Pose{}};
     pose.position.x = msg->pose.pose.position.x;
     pose.position.y = msg->pose.pose.position.y;
@@ -197,13 +192,13 @@ void RobustPeopleFollower::odometryCallback(const nav_msgs::Odometry::ConstPtr& 
     pose.orientation.z = msg->pose.pose.orientation.z;
     pose.orientation.w = msg->pose.pose.orientation.w;
 
+    // process data
     m_status_module.processOdometryData(pose, LOOP_FREQUENCY);
 }
 
 
 void RobustPeopleFollower::skeletonCallback(const body_tracker_msgs::Skeleton::ConstPtr& msg)
 {
-
     // save data from message
     auto skeleton{body_tracker_msgs::Skeleton{}};
     skeleton.body_id = msg->body_id;
@@ -224,7 +219,8 @@ void RobustPeopleFollower::skeletonCallback(const body_tracker_msgs::Skeleton::C
     skeleton.joint_position_right_elbow = msg->joint_position_right_elbow;
     skeleton.joint_position_right_hand = msg->joint_position_right_hand;
 
-    m_tracking_module.processSkeletonData(skeleton, m_status_module.pose(), m_status_module.status());
+    // process data
+    m_tracking_module.processSkeletonData(skeleton, m_status_module.pose(), m_status_module.status(), LOOP_FREQUENCY);
 }
 
 
@@ -232,7 +228,6 @@ void RobustPeopleFollower::publishPersonMarkers() const
 {
     auto person_markers{std::vector<visualization_msgs::Marker>{}};
     auto person_vectors{std::vector<visualization_msgs::Marker>{}};
-    auto person_mean_vectors{std::vector<visualization_msgs::Marker>{}};
 
     auto i{0};
     for (const auto& p : *m_tracking_module.trackedPersons()) {
@@ -299,38 +294,6 @@ void RobustPeopleFollower::publishPersonMarkers() const
             person_vectors.emplace_back(vector);
 
 
-            /*
-            // person mean vector
-            auto mean_vector{visualization_msgs::Marker{}};
-            mean_vector.header.frame_id = "odom";
-            mean_vector.header.stamp = ros::Time::now();
-            mean_vector.ns = "mean_vectors";
-            mean_vector.id = i;
-            mean_vector.type = visualization_msgs::Marker::ARROW;
-            mean_vector.action = visualization_msgs::Marker::ADD;
-            mean_vector.lifetime = ros::Duration{0.3};
-            mean_vector.pose.position.x = p.pose().position.x;
-            mean_vector.pose.position.y = p.pose().position.y;
-            mean_vector.pose.position.z = 1.3;
-
-            auto q_m{tf::createQuaternionFromYaw(p.meanAngle())};
-            mean_vector.pose.orientation.x = q_m.x();
-            mean_vector.pose.orientation.y = q_m.y();
-            mean_vector.pose.orientation.z = q_m.z();
-            mean_vector.pose.orientation.w = q_m.w();
-
-            mean_vector.scale.x = VECTOR_LENGTH_FACTOR * p.meanVelocity();
-            mean_vector.scale.y = 0.1;
-            mean_vector.scale.z = 0.1;
-
-            mean_vector.color.a = 1.0;
-            mean_vector.color.r = 1.0;
-            mean_vector.color.b = 1.0;
-
-            person_mean_vectors.emplace_back(mean_vector);
-             */
-
-
             ++i;
         }
     }
@@ -339,8 +302,6 @@ void RobustPeopleFollower::publishPersonMarkers() const
     for (const auto& m : person_markers)
         m_visualization_pub.publish(m);
     for (const auto& m : person_vectors)
-        m_visualization_pub.publish(m);
-    for (const auto& m : person_mean_vectors)
         m_visualization_pub.publish(m);
 }
 
@@ -391,7 +352,7 @@ void RobustPeopleFollower::publishWaypoints() const
 }
 
 
-visualization_msgs::Marker RobustPeopleFollower::lastPointMarker(const geometry_msgs::Point32& t_last_position) const
+visualization_msgs::Marker RobustPeopleFollower::lastPositionMarker() const
 {
     auto marker{visualization_msgs::Marker{}};
     marker.header.frame_id = "odom";
@@ -400,8 +361,8 @@ visualization_msgs::Marker RobustPeopleFollower::lastPointMarker(const geometry_
     marker.type = visualization_msgs::Marker::MESH_RESOURCE;
     marker.action = visualization_msgs::Marker::ADD;
     marker.lifetime = ros::Duration{0.3};
-    marker.pose.position.x = t_last_position.x;
-    marker.pose.position.y = t_last_position.y;
+    marker.pose.position.x = m_tracking_module.target().pose().position.x;
+    marker.pose.position.y = m_tracking_module.target().pose().position.y;
     marker.pose.orientation.w = 1.0;
     marker.scale.x = 1.0;
     marker.scale.y = 1.0;
@@ -414,7 +375,7 @@ visualization_msgs::Marker RobustPeopleFollower::lastPointMarker(const geometry_
 }
 
 
-visualization_msgs::Marker RobustPeopleFollower::targetEstimationMarker() const
+visualization_msgs::Marker RobustPeopleFollower::predictedPositionMarker() const
 {
     auto marker{visualization_msgs::Marker{}};
     marker.header.frame_id = "odom";
@@ -437,7 +398,7 @@ visualization_msgs::Marker RobustPeopleFollower::targetEstimationMarker() const
 }
 
 
-visualization_msgs::Marker RobustPeopleFollower::estimationAreaMarker() const
+visualization_msgs::Marker RobustPeopleFollower::predictionRadiusMarker() const
 {
     auto marker{visualization_msgs::Marker{}};
     marker.header.frame_id = "odom";
@@ -463,7 +424,7 @@ visualization_msgs::Marker RobustPeopleFollower::estimationAreaMarker() const
 
 
 /**
- * @brief Entry point for the node, starts the program.
+ * @brief Entry point for the node, runs the main loop.
  */
 int main(int argc, char** argv)
 {

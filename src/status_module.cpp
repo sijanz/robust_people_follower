@@ -83,9 +83,6 @@ void StatusModule::printInfo() const
     ROS_INFO("    x: %f", m_pose.position.x);
     ROS_INFO("    y: %f", m_pose.position.y);
     ROS_INFO("  theta: %f", m_angle);
-    ROS_INFO("  predicted target position:");
-//    ROS_INFO("    x: %f", m_estimated_target_position.x);
-//    ROS_INFO("    y: %f\n", m_estimated_target_position.y);
 }
 
 

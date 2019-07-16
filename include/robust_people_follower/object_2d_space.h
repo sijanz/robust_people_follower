@@ -43,7 +43,8 @@
 
 
 /**
- * @brief This class is the base class for objects TODO
+ * @brief This clas
+ * it = s is the base class for objects TODO
  */
 class Object2DSpace
 {
