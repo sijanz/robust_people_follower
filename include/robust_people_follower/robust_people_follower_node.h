@@ -175,10 +175,20 @@ private:
      * ********** MODULES **********
      */
 
-    // TODO: comment
+    /** @brief Instance of the Status Module. Keeps track of the robot's status as well as its pose and velocity. See
+     * status_module.h for detailed documentation. */
     StatusModule m_status_module{};
+
+    /** @brief Instance of the Tracking Module. Manages the tracked persons and specifically information about the
+     * target. See tracking_module.h for detailed documentation. */
     TrackingModule m_tracking_module{};
+
+    /** @brief Instance of the Control Module. Calculates the robot's velocity messages. See control_module.h for
+     * detailed documentation. */
     ControlModule m_control_module{};
+
+    /** @brief Instance of the Recovery Module. Predicts the target's position if the line of sight is lost and
+     * re-identifies the target. See recovery_module.h for detailed information. */
     RecoveryModule m_recovery_module{};
 
 
