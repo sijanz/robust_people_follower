@@ -131,7 +131,6 @@ void RobustPeopleFollower::followTarget()
 
     // move the robot
     m_velocity_command_pub.publish(m_control_module.velocityCommand(m_status_module.status(),
-                                                                    m_status_module.angle(),
                                                                     m_status_module.pose(),
                                                                     m_tracking_module.target()));
 }
@@ -148,16 +147,12 @@ void RobustPeopleFollower::searchForTarget()
         if (m_control_module.waypoints()->empty()) {
             m_status_module.status() = StatusModule::Status::SEARCHING;
 
-            m_velocity_command_pub.publish(m_control_module.velocityCommand(
-                    m_status_module.angle(),
-                    m_status_module.pose(),
-                    m_recovery_module.predictedTargetPosition().x,
-                    m_recovery_module.predictedTargetPosition().y));
+            m_velocity_command_pub.publish(ControlModule::velocityCommand(m_status_module.pose(),
+                                                                          m_recovery_module.predictedTargetPosition()));
 
             // replicate the target's path
         } else {
             m_velocity_command_pub.publish(m_control_module.velocityCommand(m_status_module.status(),
-                                                                            m_status_module.angle(),
                                                                             m_status_module.pose(),
                                                                             m_tracking_module.target()));
         }
