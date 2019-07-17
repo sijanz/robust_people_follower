@@ -43,40 +43,86 @@
 
 
 /**
- * @brief This clas
- * it = s is the base class for objects TODO
+ * @brief Represents a base class for objects in a 2-dimensional Euclidean space. Holds information for the position,
+ * angle and velocity of the object and provides getters and setters.
  */
 class Object2DSpace
 {
 public:
-    // implicit default constructor
 
     /*
      * ********** PURE VIRTUAL METHODS **********
      */
+
+    /**
+     * @brief Prints out information about the object. Look at the header file of the class that inherits from this base
+     * class to find detailed documentation.
+     */
     virtual void printInfo() const = 0;
+
+
+    /**
+     * @brief Calculates the angle of the object. Look at the header file of the class that inherits from this base
+     * class to find detailed documentation.
+     */
     virtual void calculateAngle() = 0;
+
+
+    /**
+     * @brief Calculates the velocity of the object in m/s. Look at the header file of the class that inherits from this
+     * base class to find detailed documentation.
+     *
+     * @param t_frequency the frequency of the main loop use for calculation of the velocity
+     */
     virtual void calculateVelocity(double t_frequency) = 0;
 
 
     /*
      * ********** SETTERS **********
      */
+
+    /**
+     * @brief Setter for the m_pose-member.
+     *
+     * @return pose information as a lvalue
+     */
     inline geometry_msgs::Pose& pose() { return m_pose; }
-    inline double& angle() { return m_angle; }
 
 
     /*
      * ********** GETTERS **********
      */
+
+    /**
+     * @brief Getter for the m_pose member.
+     *
+     * @return pose information as a rvalue
+     */
     inline const geometry_msgs::Pose& pose() const { return m_pose; }
-    inline const geometry_msgs::Pose& oldPose() const { return m_old_pose; }
+
+
+    /**
+     * @brief Getter for velocity information.
+     *
+     * @return velocity in m/s as a rvalue
+     */
     inline const double velocity() const { return m_velocity; }
+
+
+    /**
+     * @brief Getter for the angle.
+     *
+     * @return angle in radians as a rvalue
+     */
     inline const double angle() const { return m_angle; }
 
 
     /*
      * ********** STANDARD METHODS **********
+     */
+
+    /**
+     * @brief Sets the old pose equal to the new pose. Is needed in order to calculate the velocity and angle.
      */
     inline void updatePose() { m_old_pose = m_pose; }
 

@@ -53,8 +53,7 @@ void ControlModule::addNewWaypoint(const geometry_msgs::Pose& t_target_pose, con
 {
 
     // TODO: test
-    auto last_waypoint_time{m_waypoint_list->end()->header.stamp};
-    if (ros::Time::now() - last_waypoint_time > ros::Duration(0, (1000000000 / t_times_per_second))) {
+    if (ros::Time::now() - m_waypoint_list->end()->header.stamp > ros::Duration(0, (1000000000 / t_times_per_second))) {
         auto position{geometry_msgs::PointStamped{}};
         position.header.stamp = ros::Time::now();
         position.point.x = t_target_pose.position.x;
@@ -92,6 +91,10 @@ geometry_msgs::Twist ControlModule::velocityCommand(StatusModule::Status& t_stat
     if (distance_to_target < 1000) {
 
         speed.linear.x = 2 * (distance_to_target / 1000) - 2;
+
+        // maximum of 0.6 m/s linear velocity
+        if (speed.linear.x < -0.6)
+            speed.linear.x = -0.6;
 
         if (t_target.yDeviation() < -50) {
             speed.angular.z = -0.0025 * std::abs(t_target.yDeviation());

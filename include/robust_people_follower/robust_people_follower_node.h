@@ -188,7 +188,7 @@ private:
     ControlModule m_control_module{};
 
     /** @brief Instance of the Recovery Module. Predicts the target's position if the line of sight is lost and
-     * re-identifies the target. See recovery_module.h for detailed information. */
+     * re-identifies the target. See recovery_module.h for detailed documentation. */
     RecoveryModule m_recovery_module{};
 
 
