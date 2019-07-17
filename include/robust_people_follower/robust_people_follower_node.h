@@ -110,6 +110,10 @@ public:
     void skeletonCallback(const body_tracker_msgs::Skeleton::ConstPtr& msg);
 
 
+    /*
+     * ********** MAIN LOOP **********
+     */
+
     /**
      * @brief Represents the entry point and the main loop of the node. For each iteration, the last target's position
      * is first saved. After that, the callback functions are processed and the data from the subscribed topics is
@@ -139,6 +143,11 @@ private:
 
     /** @brief The factor of the length of a person's vector. */
     static constexpr double VECTOR_LENGTH_FACTOR{1.5};
+
+
+    /*
+     * ********** STANDARD MEMBERS **********
+     */
 
     /** @brief The name of the node as represented in ROS. */
     std::string m_name{};
