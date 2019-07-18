@@ -40,26 +40,98 @@
 #include "person.h"
 
 
+/**
+ * @brief The Tracking Module processes data received from the /body_tracker/skeleton topic and manages a list of
+ * tracked persons. In addition to that, the Tracking Module holds information about the current target.
+ */
 class TrackingModule
 {
 public:
 
+    /*
+     * ********** SPECIAL METHODS **********
+     */
+
+    /**
+     * @brief Standard constructor. Initializes the target and allocates memory on the heap for the list of tracked
+     * persons.
+     */
     TrackingModule();
 
-    // setters
+
+    /*
+     * ********** SETTERS **********
+     */
+
+    /**
+     * @brief Setter for the current target.
+     *
+     * @return a reference to the target as a lvalue
+     */
     inline Person& target() { return m_target; }
+
+
+    /**
+     * @brief Setter for the list of tracked persons.
+     *
+     * @return a pointer to the list as a lvalue
+     */
     inline std::shared_ptr<std::vector<Person>> trackedPersons() { return m_tracked_persons; }
 
-    // getters
+
+    /*
+     * ********** GETTERS **********
+     */
+
+    /**
+     * @brief Getter for the current target.
+     *
+     * @return a reference to the target as a rvalue
+     */
     inline const Person& target() const { return m_target; }
+
+
+    /**
+     * @brief Getter for the list of tracked persons.
+     *
+     * @return a pointer to the list as a rvalue
+     */
     inline const std::shared_ptr<std::vector<Person>> trackedPersons() const { return m_tracked_persons; }
 
+
+    /*
+     * ********** STANDARD METHODS **********
+     */
+
+    /**
+     * @brief Takes the skeleton data and sorts it in the list of tracked persons. If the person with the corresponding
+     * body-id from the skeleton data is currently not in the list of tracked persons, a new entry is created. If the
+     * person is already in the list of currently tracked persons, the information in the list gets updated. If a
+     * gesture is recognized, the corresponding tracked person is selected as a target. The target is unset if a gesture
+     * is associated with its body id.
+     *
+     * @param t_skeleton the skeleton information received from the /body_tacker/skeleton topic
+     * @param t_robot_pose the pose information of the robot; used to calculate the absolute position of a person
+     * @param t_status reference to the robot's status; needs to be changed if a new target is selected
+     * @param t_loop_frequency the frequency of the main loops; used for the calculation of the velocity of a person
+     */
     void processSkeletonData(const body_tracker_msgs::Skeleton& t_skeleton, const geometry_msgs::Pose& t_robot_pose,
                              StatusModule::Status& t_status, double t_loop_frequency);
+
+
+    /**
+     * @brief Removes entries of persons that are not tracked anymore. An entry gets deleted if the distance and
+     * y-deviation is equal to 0.s
+     */
     void managePersonList();
 
+
 private:
+
+    /** @brief Represents the current target */
     Person m_target{};
+
+    /** @brief A list persons currently tracked  */
     std::shared_ptr<std::vector<Person>> m_tracked_persons{};
 };
 
