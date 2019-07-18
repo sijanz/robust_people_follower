@@ -51,14 +51,16 @@ ControlModule::ControlModule() : m_current_linear{}, m_current_angular{}
 
 void ControlModule::addNewWaypoint(const geometry_msgs::Pose& t_target_pose, const int t_times_per_second)
 {
+    if (m_waypoint_list->size() > 100)
+        m_waypoint_list->pop_front();
 
-    // TODO: test
-    if (ros::Time::now() - m_waypoint_list->end()->header.stamp > ros::Duration(0, (1000000000 / t_times_per_second))) {
+    if (ros::Time::now() - m_last_waypoint_time > ros::Duration(0, (1000000000 / t_times_per_second))) {
         auto position{geometry_msgs::PointStamped{}};
         position.header.stamp = ros::Time::now();
         position.point.x = t_target_pose.position.x;
         position.point.y = t_target_pose.position.y;
 
+        m_last_waypoint_time = ros::Time::now();
         m_waypoint_list->emplace_back(position);
     }
 }

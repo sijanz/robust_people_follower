@@ -124,6 +124,9 @@ private:
 
     /** @brief A pointer to the list of waypoints located on the heap. */
     std::shared_ptr<std::deque<geometry_msgs::PointStamped>> m_waypoint_list{};
+
+    /** @brief The time the last waypoint is set. */
+    ros::Time m_last_waypoint_time{};
 };
 
 
