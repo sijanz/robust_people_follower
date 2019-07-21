@@ -43,15 +43,50 @@
 #include "status_module.h"
 
 
+/**
+ * @brief Predicts the target's position if the line of sight to the target is lost. Receives target information
+ * from the tracking module. The target's predicted position is calculated using the Constant Turn Rate and Acceleration
+ * motion model. Along with the calculation of the predicted position, the Recovery Module calculates a radius in which
+ * the target is likely to be located. If a tracked person is inside the radius, it is set as the new target.
+ */
 class RecoveryModule
 {
 public:
+
+    /*
+     * ********** SPECIAL METHODS **********
+     */
+
+    /**
+     * @brief Default constructor, initializes the predicted positions and the prediction radius to 0 and the stop flag
+     * to false.
+     */
     inline RecoveryModule() = default;
 
-    // getters
+
+    /*
+     * ********** GETTERS **********
+     */
+
+    /**
+     * Getter for the predicted target position.
+     *
+     * @return the predicted target position as a rvalue
+     */
     inline const geometry_msgs::Point32 predictedTargetPosition() const { return m_predicted_target_position; }
+
+
+    /**
+     * Getter for the prediction radius.
+     *
+     * @return the prediction radius as a rvalue
+     */
     inline const double predictionRadius() const { return m_prediction_radius; }
 
+
+    /*
+     * ********** STANDARD METHODS **********
+     */
     void predictTargetPosition(const Person& t_target, double t_frequency);
     void reIdentify(Person& t_target, const std::shared_ptr<std::vector<Person>>& t_tracked_persons,
                     const std::shared_ptr<std::deque<geometry_msgs::PointStamped>>& t_waypoint_list,

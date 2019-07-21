@@ -54,17 +54,17 @@ public:
     enum Status : unsigned char
     {
 
-        /** @brief The robots has a WAITING status if no target is selected */
+        /** @brief The robots has a WAITING status if no target is selected. */
                 WAITING = 0,
 
         /** @brief Is set after the "follow-me"-gesture is recognized; the robot follows the target depending on its
-         * distance to the robot*/
+         * distance to the robot. */
                 FOLLOWING = 1,
 
-        /** @brief The robot lost the line of sight to the target but still has waypoints to drive to */
+        /** @brief The robot lost the line of sight to the target but still has waypoints to drive to. */
                 LOS_LOST = 2,
 
-        /** @brief The line of sight to the target is lost and no waypoints are left to drive to */
+        /** @brief The line of sight to the target is lost and no waypoints are left to drive to. */
                 SEARCHING = 3
     };
 
@@ -146,7 +146,7 @@ public:
 
 private:
 
-    /** @brief Stores the current status of the robot in form of the Status enumeration */
+    /** @brief Stores the current status of the robot in form of the Status enumeration. */
     Status m_status{};
 };
 
