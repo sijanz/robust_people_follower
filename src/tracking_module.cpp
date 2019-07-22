@@ -45,28 +45,15 @@ TrackingModule::TrackingModule() : m_target{}
 
 
 void TrackingModule::processSkeletonData(const body_tracker_msgs::Skeleton& t_skeleton,
-                                         const geometry_msgs::Pose& t_robot_pose, StatusModule::Status& t_status,
-                                         const double t_loop_frequency)
+                                         const geometry_msgs::PoseStamped& t_robot_pose, StatusModule::Status& t_status)
 {
     auto p{std::find(m_tracked_persons->begin(), m_tracked_persons->end(), t_skeleton.body_id)};
 
     // person is already in the list
     if (p != m_tracked_persons->end()) {
 
-        // update information
-        p->skeleton() = t_skeleton;
-
-        auto q{tf::Quaternion{t_robot_pose.orientation.x, t_robot_pose.orientation.y, t_robot_pose.orientation.z,
-                              t_robot_pose.orientation.w}};
-        auto m{tf::Matrix3x3{q}};
-        auto roll{0.0}, pitch{0.0}, theta{0.0};
-        m.getRPY(roll, pitch, theta);
-        auto robot_angle{theta};
-
-        p->calculateAbsolutePosition(t_robot_pose.position.x, t_robot_pose.position.y, robot_angle);
-        p->calculateAngle();
-        p->calculateVelocity(t_loop_frequency);
-        p->updatePose();
+        // update the state of the tracked person
+        p->updateState(t_skeleton, t_robot_pose);
 
         // target
         if (p->target()) {

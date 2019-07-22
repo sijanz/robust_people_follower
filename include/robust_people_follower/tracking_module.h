@@ -113,10 +113,10 @@ public:
      * @param t_skeleton the skeleton information received from the /body_tacker/skeleton topic
      * @param t_robot_pose the pose information of the robot; used to calculate the absolute position of a person
      * @param t_status reference to the robot's status; needs to be changed if a new target is selected
-     * @param t_loop_frequency the frequency of the main loops; used for the calculation of the velocity of a person
      */
-    void processSkeletonData(const body_tracker_msgs::Skeleton& t_skeleton, const geometry_msgs::Pose& t_robot_pose,
-                             StatusModule::Status& t_status, double t_loop_frequency);
+    void processSkeletonData(const body_tracker_msgs::Skeleton& t_skeleton,
+                             const geometry_msgs::PoseStamped& t_robot_pose,
+                             StatusModule::Status& t_status);
 
 
     /**

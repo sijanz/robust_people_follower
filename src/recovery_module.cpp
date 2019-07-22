@@ -117,8 +117,8 @@ void RecoveryModule::predictTargetPosition(const Person& t_target, const double 
                                          + velocity * yaw_rate * cos(theta) - acceleration * sin(theta))};
 
     if (!m_prediction_stop) {
-        m_predicted_target_position.x = t_target.pose().position.x + x_t;
-        m_predicted_target_position.y = t_target.pose().position.y + y_t;
+        m_predicted_target_position.x = t_target.pose().pose.position.x + x_t;
+        m_predicted_target_position.y = t_target.pose().pose.position.y + y_t;
 
 
         // estimated velocity
@@ -156,11 +156,11 @@ void RecoveryModule::reIdentify(Person& t_target, const std::shared_ptr<std::vec
     };
 
     for (auto& p : *t_tracked_persons) {
-        if (distance(p.pose().position, m_predicted_target_position) < min_distance) {
-            min_distance = distance(p.pose().position, m_predicted_target_position);
+        if (distance(p.pose().pose.position, m_predicted_target_position) < min_distance) {
+            min_distance = distance(p.pose().pose.position, m_predicted_target_position);
 
             // person is in radius and nearest to the predicted position, set target
-            if (distance(p.pose().position, m_predicted_target_position) < m_prediction_radius) {
+            if (distance(p.pose().pose.position, m_predicted_target_position) < m_prediction_radius) {
                 t_waypoint_list->clear();
                 m_old_predicted_target_position = geometry_msgs::Point32{};
                 m_predicted_target_position = geometry_msgs::Point32{};

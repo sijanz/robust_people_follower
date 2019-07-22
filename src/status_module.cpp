@@ -39,25 +39,6 @@
 #include "robust_people_follower/status_module.h"
 
 
-void StatusModule::calculateAngle()
-{
-    auto q{tf::Quaternion{m_pose.orientation.x, m_pose.orientation.y, m_pose.orientation.z, m_pose.orientation.w}};
-    auto m{tf::Matrix3x3{q}};
-
-    auto roll{0.0}, pitch{0.0}, theta{0.0};
-    m.getRPY(roll, pitch, theta);
-
-    m_angle = theta;
-}
-
-
-void StatusModule::calculateVelocity(const double t_frequency)
-{
-    m_velocity = sqrt(pow((m_old_pose.position.x - m_pose.position.x), 2) +
-                      pow((m_old_pose.position.y - m_pose.position.y), 2)) / (1 / t_frequency);
-}
-
-
 void StatusModule::printInfo() const
 {
     auto status_string{""};
@@ -80,16 +61,22 @@ void StatusModule::printInfo() const
     ROS_INFO("  status: [%s]", status_string);
     ROS_INFO("  velocity: %f", m_velocity);
     ROS_INFO("  position:");
-    ROS_INFO("    x: %f", m_pose.position.x);
-    ROS_INFO("    y: %f", m_pose.position.y);
-    ROS_INFO("  theta: %f", m_angle);
+    ROS_INFO("    x: %f", m_current_pose.pose.position.x);
+    ROS_INFO("    y: %f", m_current_pose.pose.position.y);
+    ROS_INFO("  theta: %f", this->angle());
 }
 
 
-void StatusModule::processOdometryData(const geometry_msgs::Pose& t_pose, const double t_frequency)
+void StatusModule::processOdometryData(const geometry_msgs::PoseStamped& t_pose_stamped)
 {
-    m_pose = t_pose;
-    calculateAngle();
-    calculateVelocity(t_frequency);
-    updatePose();
+    if (!m_values_set) {
+
+        // DEBUG
+        ROS_INFO_STREAM("processing odometry data");
+
+        m_current_pose = t_pose_stamped;
+        calculateVelocity();
+        updatePose();
+        m_values_set = true;
+    }
 }

@@ -84,22 +84,6 @@ public:
      */
 
     /**
-     * @brief Calculates the angle of the robot by creating a quaternion out of the odometry data. The yaw value is then
-     * extracted from the quaternion and set as the robot's angle in the global reference system.
-     */
-    void calculateAngle() override;
-
-
-    /**
-     * @brief Calculates the velocity of the robot by dividing the Euclidean distance between the current and the last
-     * position by the inverse of the frequency of the main loop.
-     *
-     * @param t_frequency the frequency of the main loop in Hz
-     */
-    void calculateVelocity(double t_frequency) override;
-
-
-    /**
      * @brief Prints out information about the robot. The information contains of the robot's status, velocity in m/s,
      * position in the coordinate system as x-y-value and orientation in radians.
      */
@@ -138,10 +122,9 @@ public:
      * @brief Sets the data extracted from the /odom topic to the members. It first sets the pose, before calculating
      * the robot's angle and velocity. Lastly the robot's old pose is updated.
      *
-     * @param t_pose pose information extracted from the /odom topic
-     * @param t_frequency frequency of the main loop to calculate the robot's velocity
+     * @param t_pose_stamped pose information extracted from the /odom topic
      */
-    void processOdometryData(const geometry_msgs::Pose& t_pose, double t_frequency);
+    void processOdometryData(const geometry_msgs::PoseStamped& t_pose_stamped);
 
 
 private:

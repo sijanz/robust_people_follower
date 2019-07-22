@@ -35,6 +35,7 @@
 
 #include <tf/transform_datatypes.h>
 #include <memory>
+#include <fstream>
 
 #include "robust_people_follower/robust_people_follower_node.h"
 
@@ -67,10 +68,16 @@ void RobustPeopleFollower::runLoop()
 {
     auto loop_rate{ros::Rate{LOOP_FREQUENCY}};
 
+    // LOG
+    std::ofstream file{};
+    file.open("/home/simon/log.csv");
+    file << "time,x,y,distance,velocity,p_x,p_y\n";
+
+    auto start_time{ros::Time::now().toSec()};
+
     while (ros::ok()) {
 
-        // process callbacks
-        ros::spinOnce();
+        processCallbacks();
 
         // target is lost, set status to LOS_LOST
         if (m_status_module.status() == StatusModule::Status::FOLLOWING && m_tracking_module.target().distance() == 0.0)
@@ -98,11 +105,35 @@ void RobustPeopleFollower::runLoop()
         // print out program information on the screen
         debugPrintout();
 
+        // LOG
+        auto current_time{ros::Time::now().toSec() - start_time};
+        if (m_status_module.status() == StatusModule::Status::FOLLOWING) {
+            file << current_time << "," << m_tracking_module.target().pose().pose.position.x << ","
+                 << m_tracking_module.target().pose().pose.position.y << ","
+                 << m_tracking_module.target().distance() / 1000
+                 << "," << m_tracking_module.target().meanVelocity() << ",0,0\n";
+        } else if (m_status_module.status() == StatusModule::Status::LOS_LOST
+                   || m_status_module.status() == StatusModule::Status::SEARCHING) {
+            file << current_time << ",0,0,0,0," << m_recovery_module.predictedTargetPosition().x << ","
+                 << m_recovery_module.predictedTargetPosition().y << "\n";
+        }
+
         // delete entries of persons that aren't tracked anymore
         m_tracking_module.managePersonList();
 
         loop_rate.sleep();
     }
+}
+
+
+void RobustPeopleFollower::processCallbacks()
+{
+    ros::spinOnce();
+
+    m_status_module.valuesSet() = false;
+    m_tracking_module.target().valuesSet() = false;
+    for (auto& p : *m_tracking_module.trackedPersons())
+        p.valuesSet() = false;
 }
 
 
@@ -132,7 +163,7 @@ void RobustPeopleFollower::followTarget()
     // move the robot
     m_velocity_command_pub.publish(m_control_module.velocityCommand(m_status_module.status(),
                                                                     m_status_module.pose(),
-                                                                    m_tracking_module.target()));
+                                                                    m_tracking_module.target(), FOLLOW_THRESHOLD));
 }
 
 
@@ -154,7 +185,8 @@ void RobustPeopleFollower::searchForTarget()
         } else {
             m_velocity_command_pub.publish(m_control_module.velocityCommand(m_status_module.status(),
                                                                             m_status_module.pose(),
-                                                                            m_tracking_module.target()));
+                                                                            m_tracking_module.target(),
+                                                                            FOLLOW_THRESHOLD));
         }
 
         // re-identify the target if possible
@@ -178,17 +210,12 @@ void RobustPeopleFollower::searchForTarget()
 void RobustPeopleFollower::odometryCallback(const nav_msgs::Odometry::ConstPtr& msg)
 {
     // save data from message
-    auto pose{geometry_msgs::Pose{}};
-    pose.position.x = msg->pose.pose.position.x;
-    pose.position.y = msg->pose.pose.position.y;
-    pose.position.z = msg->pose.pose.position.z;
-    pose.orientation.x = msg->pose.pose.orientation.x;
-    pose.orientation.y = msg->pose.pose.orientation.y;
-    pose.orientation.z = msg->pose.pose.orientation.z;
-    pose.orientation.w = msg->pose.pose.orientation.w;
+    auto pose_stamped{geometry_msgs::PoseStamped{}};
+    pose_stamped.header.stamp = ros::Time::now();
+    pose_stamped.pose = msg->pose.pose;
 
     // process data
-    m_status_module.processOdometryData(pose, LOOP_FREQUENCY);
+    m_status_module.processOdometryData(pose_stamped);
 }
 
 
@@ -215,7 +242,7 @@ void RobustPeopleFollower::skeletonCallback(const body_tracker_msgs::Skeleton::C
     skeleton.joint_position_right_hand = msg->joint_position_right_hand;
 
     // process data
-    m_tracking_module.processSkeletonData(skeleton, m_status_module.pose(), m_status_module.status(), LOOP_FREQUENCY);
+    m_tracking_module.processSkeletonData(skeleton, m_status_module.pose(), m_status_module.status());
 }
 
 
@@ -237,8 +264,8 @@ void RobustPeopleFollower::publishPersonMarkers() const
             marker.type = visualization_msgs::Marker::MESH_RESOURCE;
             marker.action = visualization_msgs::Marker::ADD;
             marker.lifetime = ros::Duration{0.3};
-            marker.pose.position.x = p.pose().position.x;
-            marker.pose.position.y = p.pose().position.y;
+            marker.pose.position.x = p.pose().pose.position.x;
+            marker.pose.position.y = p.pose().pose.position.y;
             marker.pose.orientation.w = 1.0;
 
             marker.scale.x = 1.0;
@@ -269,17 +296,17 @@ void RobustPeopleFollower::publishPersonMarkers() const
             vector.type = visualization_msgs::Marker::ARROW;
             vector.action = visualization_msgs::Marker::ADD;
             vector.lifetime = ros::Duration{0.3};
-            vector.pose.position.x = p.pose().position.x;
-            vector.pose.position.y = p.pose().position.y;
+            vector.pose.position.x = p.pose().pose.position.x;
+            vector.pose.position.y = p.pose().pose.position.y;
             vector.pose.position.z = 1.3;
 
-            auto q{tf::Quaternion{tf::createQuaternionFromYaw(p.angle())}};
+            auto q{tf::Quaternion{tf::createQuaternionFromYaw(p.meanAngle())}};
             vector.pose.orientation.x = q.getX();
             vector.pose.orientation.y = q.getY();
             vector.pose.orientation.z = q.getZ();
             vector.pose.orientation.w = q.getW();
 
-            vector.scale.x = VECTOR_LENGTH_FACTOR * p.velocity();
+            vector.scale.x = VECTOR_LENGTH_FACTOR * p.meanVelocity();
             vector.scale.y = 0.1;
             vector.scale.z = 0.1;
 
@@ -356,8 +383,8 @@ visualization_msgs::Marker RobustPeopleFollower::lastPositionMarker() const
     marker.type = visualization_msgs::Marker::MESH_RESOURCE;
     marker.action = visualization_msgs::Marker::ADD;
     marker.lifetime = ros::Duration{0.3};
-    marker.pose.position.x = m_tracking_module.target().pose().position.x;
-    marker.pose.position.y = m_tracking_module.target().pose().position.y;
+    marker.pose.position.x = m_tracking_module.target().pose().pose.position.x;
+    marker.pose.position.y = m_tracking_module.target().pose().pose.position.y;
     marker.pose.orientation.w = 1.0;
     marker.scale.x = 1.0;
     marker.scale.y = 1.0;

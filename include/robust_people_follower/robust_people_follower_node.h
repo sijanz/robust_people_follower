@@ -205,6 +205,9 @@ private:
      * ********** HELPER METHODS TO KEEP THE MAIN LOOP CLEAN **********
      */
 
+    void processCallbacks();
+
+
     /**
      * @brief Prints out information about the robot's and the target's status as well as information about tracked
      * persons.

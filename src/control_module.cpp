@@ -41,6 +41,7 @@
 #include <robust_people_follower/person.h>
 
 #include "robust_people_follower/control_module.h"
+#include "robust_people_follower/object_2d_space.h"
 
 
 ControlModule::ControlModule() : m_current_linear{}, m_current_angular{}
@@ -49,7 +50,7 @@ ControlModule::ControlModule() : m_current_linear{}, m_current_angular{}
 }
 
 
-void ControlModule::addNewWaypoint(const geometry_msgs::Pose& t_target_pose, const int t_times_per_second)
+void ControlModule::addNewWaypoint(const geometry_msgs::PoseStamped& t_target_pose, const int t_times_per_second)
 {
     if (m_waypoint_list->size() > 100)
         m_waypoint_list->pop_front();
@@ -57,8 +58,8 @@ void ControlModule::addNewWaypoint(const geometry_msgs::Pose& t_target_pose, con
     if (ros::Time::now() - m_last_waypoint_time > ros::Duration(0, (1000000000 / t_times_per_second))) {
         auto position{geometry_msgs::PointStamped{}};
         position.header.stamp = ros::Time::now();
-        position.point.x = t_target_pose.position.x;
-        position.point.y = t_target_pose.position.y;
+        position.point.x = t_target_pose.pose.position.x;
+        position.point.y = t_target_pose.pose.position.y;
 
         m_last_waypoint_time = ros::Time::now();
         m_waypoint_list->emplace_back(position);
@@ -67,20 +68,16 @@ void ControlModule::addNewWaypoint(const geometry_msgs::Pose& t_target_pose, con
 
 
 geometry_msgs::Twist ControlModule::velocityCommand(StatusModule::Status& t_status,
-                                                    const geometry_msgs::Pose& t_pose,
-                                                    const Person& t_target)
+                                                    const geometry_msgs::PoseStamped& t_pose,
+                                                    const Person& t_target, const double t_follow_threshold)
 {
-
-    // TODO: declare as member
-    auto FOLLOW_THRESHOLD{1800.0};
-
     auto distance_to_target{t_target.distance()};
 
-    // FIXME: ugly, only temporary fix
+    // FIXME: O O F
     if (distance_to_target == 0)
-        distance_to_target = FOLLOW_THRESHOLD + 200;
+        distance_to_target = t_follow_threshold + 200;
 
-    if (t_status == StatusModule::Status::FOLLOWING && distance_to_target < FOLLOW_THRESHOLD)
+    if (t_status == StatusModule::Status::FOLLOWING && distance_to_target < t_follow_threshold)
         m_waypoint_list->clear();
 
     // set status to SEARCHING if waypoint list is empty
@@ -106,7 +103,7 @@ geometry_msgs::Twist ControlModule::velocityCommand(StatusModule::Status& t_stat
             speed.angular.z = 0;
 
         // target is under threshold, only keep him centered
-    } else if (distance_to_target > 1000 && distance_to_target < FOLLOW_THRESHOLD) {
+    } else if (distance_to_target > 1000 && distance_to_target < t_follow_threshold) {
 
         if (t_target.yDeviation() < -50) {
             speed.angular.z = -0.0025 * std::abs(t_target.yDeviation());
@@ -120,15 +117,11 @@ geometry_msgs::Twist ControlModule::velocityCommand(StatusModule::Status& t_stat
 
         auto current_goal{m_waypoint_list->at(0)};
 
-        auto q{tf::Quaternion{t_pose.orientation.x, t_pose.orientation.y, t_pose.orientation.z, t_pose.orientation.w}};
-        auto m{tf::Matrix3x3{q}};
-
-        auto roll{0.0}, pitch{0.0}, theta{0.0};
-        m.getRPY(roll, pitch, theta);
+        auto theta{Object2DSpace::yawFromPose(t_pose)};
 
         auto rotation{tf::Matrix3x3{
-                cos(theta), -sin(theta), t_pose.position.x,
-                sin(theta), cos(theta), t_pose.position.y,
+                cos(theta), -sin(theta), t_pose.pose.position.x,
+                sin(theta), cos(theta), t_pose.pose.position.y,
                 0.0, 0.0, 1.0
         }};
 
@@ -137,14 +130,14 @@ geometry_msgs::Twist ControlModule::velocityCommand(StatusModule::Status& t_stat
 
         auto local_angle_to_goal{atan2(local_vector.y(), local_vector.x())};
 
-        auto distance_to_goal{sqrt(pow(current_goal.point.x - t_pose.position.x, 2) +
-                                   pow(current_goal.point.y - t_pose.position.y, 2))};
+        auto distance_to_goal{sqrt(pow(current_goal.point.x - t_pose.pose.position.x, 2) +
+                                   pow(current_goal.point.y - t_pose.pose.position.y, 2))};
 
         auto speed_linear{0.4};
 
         if (t_status == StatusModule::Status::FOLLOWING) {
 
-            // TODO: make variable again
+            // TODO: make linear speed variable again (in dependence of distance to target)
 //            auto n{-(0.32 * ((FOLLOW_THRESHOLD / 1000) - 0.2))};
             speed_linear = 1.5 * (distance_to_target / 1000) - 2.7;
 
@@ -177,21 +170,16 @@ geometry_msgs::Twist ControlModule::velocityCommand(StatusModule::Status& t_stat
 }
 
 
-geometry_msgs::Twist ControlModule::velocityCommand(const geometry_msgs::Pose& t_pose,
+geometry_msgs::Twist ControlModule::velocityCommand(const geometry_msgs::PoseStamped& t_pose,
                                                     const geometry_msgs::Point32& t_point)
 {
     auto speed{geometry_msgs::Twist{}};
 
-    auto q{tf::Quaternion{t_pose.orientation.x, t_pose.orientation.y, t_pose.orientation.z, t_pose.orientation.w}};
-    auto m{tf::Matrix3x3{q}};
-
-    auto roll{0.0}, pitch{0.0}, theta{0.0};
-    m.getRPY(roll, pitch, theta);
-
+    auto theta{Object2DSpace::yawFromPose(t_pose)};
 
     auto rotation{tf::Matrix3x3{
-            cos(theta), -sin(theta), t_pose.position.x,
-            sin(theta), cos(theta), t_pose.position.y,
+            cos(theta), -sin(theta), t_pose.pose.position.x,
+            sin(theta), cos(theta), t_pose.pose.position.y,
             0.0, 0.0, 1.0
     }};
 

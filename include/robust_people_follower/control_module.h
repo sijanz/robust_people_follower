@@ -83,7 +83,7 @@ public:
      * @param t_target_pose the pose of the current target
      * @param t_times_per_second how many times per second a waypoint is to be placed
      */
-    void addNewWaypoint(const geometry_msgs::Pose& t_target_pose, int t_times_per_second);
+    void addNewWaypoint(const geometry_msgs::PoseStamped& t_target_pose, int t_times_per_second);
 
 
     /**
@@ -96,10 +96,11 @@ public:
      * @param t_status reference to the status of the robot; gets changed to SEARCHING if waypoint list is empty
      * @param t_pose pose of the robot
      * @param t_target reference to the current target; needed to get its position
+     * @param t_follow_threshold the distance at which the target is being followed
      * @return the velocity command to be published in ROS; includes linear and angular velocity information
      */
-    geometry_msgs::Twist velocityCommand(StatusModule::Status& t_status, const geometry_msgs::Pose& t_pose,
-                                         const Person& t_target);
+    geometry_msgs::Twist velocityCommand(StatusModule::Status& t_status, const geometry_msgs::PoseStamped& t_pose,
+                                         const Person& t_target, double t_follow_threshold);
 
 
     /**
@@ -110,7 +111,7 @@ public:
      * @param t_point the point to look at
      * @return the velocity command to be published in ROS; includes linear and angular velocity information
      */
-    static geometry_msgs::Twist velocityCommand(const geometry_msgs::Pose& t__pose,
+    static geometry_msgs::Twist velocityCommand(const geometry_msgs::PoseStamped& t_pose,
                                                 const geometry_msgs::Point32& t_point);
 
 

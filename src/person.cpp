@@ -40,8 +40,11 @@
 
 Person::Person(const body_tracker_msgs::Skeleton& t_skeleton)
         : m_is_target{}, m_skeleton{t_skeleton}, m_gesture_begin{}, m_mean_velocity{}, m_mean_angle{},
-          m_velocities{new std::vector<VelocityStamped>{}}, m_mean_velocities{std::deque<VelocityStamped>{}},
-          m_angles{new std::vector<AngleStamped>{}}, m_mean_angles{std::deque<AngleStamped>{}} {}
+          m_mean_velocities{std::deque<VelocityStamped>{}}, m_mean_angles{std::deque<AngleStamped>{}}
+{
+    m_poses = std::make_shared<std::vector<geometry_msgs::PoseStamped>>();
+    m_velocities = std::make_shared<std::vector<VelocityStamped>>();
+}
 
 
 void Person::printInfo() const
@@ -57,63 +60,83 @@ void Person::printVerboseInfo() const
     ROS_INFO_STREAM("  velocity: " << m_velocity);
     ROS_INFO_STREAM("  mean velocity: " << m_mean_velocity);
     ROS_INFO_STREAM("  mean_velocities size: " << m_mean_velocities.size());
+    ROS_INFO_STREAM("  mean angles size: " << m_mean_angles.size());
     ROS_INFO_STREAM("  mean angle: " << m_mean_angle);
-    ROS_INFO_STREAM("  theta: " << m_angle);
+    ROS_INFO_STREAM("  theta: " << yawFromPose(m_current_pose));
     ROS_INFO_STREAM("  distance: " << m_skeleton.centerOfMass.x);
     ROS_INFO_STREAM("  delta-y: " << m_skeleton.centerOfMass.y << "\n");
 }
 
 
-void Person::calculateAbsolutePosition(const double t_robot_x, const double t_robot_y, const double t_robot_angle)
+void Person::updateState(const body_tracker_msgs::Skeleton& t_skeleton, const geometry_msgs::PoseStamped& t_robot_pose)
+{
+    if (!m_values_set) {
+        m_skeleton = t_skeleton;
+        calculateAbsolutePosition(t_robot_pose);
+
+        // calculate angle
+        auto angle{std::atan2((m_current_pose.pose.position.y - m_old_pose.pose.position.y),
+                              (m_current_pose.pose.position.x - m_old_pose.pose.position.x))};
+        auto q{tf::Quaternion{tf::createQuaternionFromYaw(angle)}};
+        m_current_pose.pose.orientation.x = q.x();
+        m_current_pose.pose.orientation.y = q.y();
+        m_current_pose.pose.orientation.z = q.z();
+        m_current_pose.pose.orientation.w = q.w();
+
+        m_poses->emplace_back(m_current_pose);
+
+        calculateVelocity();
+        applyMovingAverageFilter(1);
+        updatePose();
+        m_values_set = true;
+    }
+}
+
+
+void Person::calculateAbsolutePosition(const geometry_msgs::PoseStamped& t_robot_pose)
 {
     if (m_skeleton.centerOfMass.x > 0) {
+        auto robot_angle{yawFromPose(t_robot_pose)};
+
         auto rotation{tf::Matrix3x3{
-                cos(t_robot_angle), -sin(t_robot_angle), t_robot_x,
-                sin(t_robot_angle), cos(t_robot_angle), t_robot_y,
+                cos(robot_angle), -sin(robot_angle), t_robot_pose.pose.position.x,
+                sin(robot_angle), cos(robot_angle), t_robot_pose.pose.position.y,
                 0.0, 0.0, 1.0
         }};
 
         auto local_vector{tf::Vector3{(m_skeleton.centerOfMass.x / 1000), (m_skeleton.centerOfMass.y / 1000), 1.0}};
         auto global_vector{rotation * local_vector};
 
-        m_pose.position.x = global_vector.x();
-        m_pose.position.y = global_vector.y();
+        m_current_pose.header.stamp = ros::Time::now();
+        m_current_pose.pose.position.x = global_vector.x();
+        m_current_pose.pose.position.y = global_vector.y();
     }
 }
 
 
-bool Person::correctHandHeight() const
+void Person::applyMovingAverageFilter(const double t_interval_length_sec)
 {
-    return m_skeleton.joint_position_left_hand.z > m_skeleton.joint_position_spine_top.z;
-}
+    m_velocities->emplace_back(VelocityStamped{m_velocity, ros::Time::now()});
 
-
-void Person::calculateAngle()
-{
-
-    // FIXME: use abs?
-    m_angle = std::atan2((m_pose.position.y - m_old_pose.position.y),
-                         (m_pose.position.x - m_old_pose.position.x));
-
-    // erase angles which stamps are older than 2 seconds
-    auto it = m_angles->begin();
-    while (it != m_angles->end()) {
-        if (ros::Time::now() - it->stamp > ros::Duration{2})
-            it = m_angles->erase(it);
-        ++it;
-    }
-
-    m_angles->emplace_back(AngleStamped{m_angle, ros::Time::now()});
+    // angle
 
     // calculate a new mean angle and place it in the vector
     // https://en.wikipedia.org/wiki/Mean_of_circular_quantities
     auto count{0};
     auto sum_sin{0.0};
     auto sum_cos{0.0};
-    for (const auto& as : *m_angles) {
-        if (ros::Time::now() - as.stamp <= ros::Duration{2}) {
-            sum_sin += sin(as.angle);
-            sum_cos += cos(as.angle);
+    for (const auto& ps : *m_poses) {
+        if (ros::Time::now() - ps.header.stamp <= ros::Duration{t_interval_length_sec}) {
+
+            auto current_pose{geometry_msgs::PoseStamped{}};
+            current_pose.pose.orientation.x = ps.pose.orientation.x;
+            current_pose.pose.orientation.y = ps.pose.orientation.y;
+            current_pose.pose.orientation.z = ps.pose.orientation.z;
+            current_pose.pose.orientation.w = ps.pose.orientation.w;
+
+            sum_sin += sin(yawFromPose(current_pose));
+            sum_cos += cos(yawFromPose(current_pose));
+
             ++count;
         }
     }
@@ -123,31 +146,14 @@ void Person::calculateAngle()
 
     if (m_mean_angles.size() > 200)
         m_mean_angles.pop_front();
-}
 
 
-void Person::calculateVelocity(const double t_frequency)
-{
-    m_velocity = sqrt(pow((m_old_pose.position.x - m_pose.position.x), 2) +
-                      pow((m_old_pose.position.y - m_pose.position.y), 2)) / (1 / t_frequency);
-
-    // erase velocities which stamps are older than 2 seconds
-    auto it = m_velocities->begin();
-    while (it != m_velocities->end()) {
-        if (ros::Time::now() - it->stamp > ros::Duration{2})
-            it = m_velocities->erase(it);
-        ++it;
-    }
-
-    // FIXME: ugly
-    if (m_velocity < 5.0)
-        m_velocities->emplace_back(VelocityStamped{m_velocity, ros::Time::now()});
-
+    // velocity
     // calculate and add new mean velocity
-    auto count{0};
+    count = 0;
     auto sum{0.0};
     for (const auto& vs : *m_velocities) {
-        if (ros::Time::now() - vs.stamp <= ros::Duration{2}) {
+        if (ros::Time::now() - vs.stamp <= ros::Duration{t_interval_length_sec}) {
             sum += vs.velocity;
             ++count;
         }
@@ -161,4 +167,10 @@ void Person::calculateVelocity(const double t_frequency)
 
     if (m_mean_velocities.size() > 200)
         m_mean_velocities.pop_front();
+}
+
+
+bool Person::correctHandHeight() const
+{
+    return m_skeleton.joint_position_left_hand.z > m_skeleton.joint_position_spine_top.z;
 }

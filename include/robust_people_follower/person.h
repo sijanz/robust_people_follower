@@ -62,12 +62,9 @@ public:
 
     // inherited methods
     void printInfo() const override;
-    void calculateAngle() override;
-    void calculateVelocity(double t_frequency) override;
 
     // setters
     inline bool& target() { return m_is_target; }
-    inline body_tracker_msgs::Skeleton& skeleton() { return m_skeleton; }
     inline ros::Time& gestureBegin() { return m_gesture_begin; }
 
     // getters
@@ -77,26 +74,27 @@ public:
     inline const double meanVelocity() const { return m_mean_velocity; }
     inline const double meanAngle() const { return m_mean_angle; }
     inline const ros::Time& lastSeen() const { return m_velocities->at(m_velocities->size() - 1).stamp; }
-    inline const std::shared_ptr<std::vector<VelocityStamped>> velocities() const { return m_velocities; }
     inline const std::deque<VelocityStamped>& meanVelocities() const { return m_mean_velocities; }
-    inline const std::shared_ptr<std::vector<AngleStamped>> angles() const { return m_angles; }
     inline const std::deque<AngleStamped>& meanAngles() const { return m_mean_angles; }
 
     void printVerboseInfo() const;
     bool correctHandHeight() const;
-    void calculateAbsolutePosition(double t_robot_x, double t_robot_y, double t_robot_angle);
+    void updateState(const body_tracker_msgs::Skeleton& t_skeleton, const geometry_msgs::PoseStamped& t_robot_pose);
 
 
 private:
     bool m_is_target{};
     body_tracker_msgs::Skeleton m_skeleton{};
     ros::Time m_gesture_begin{};
+    std::shared_ptr<std::vector<geometry_msgs::PoseStamped>> m_poses;
     double m_mean_velocity{};
     double m_mean_angle{};
     std::shared_ptr<std::vector<VelocityStamped>> m_velocities;
     std::deque<VelocityStamped> m_mean_velocities;
-    std::shared_ptr<std::vector<AngleStamped>> m_angles;
     std::deque<AngleStamped> m_mean_angles;
+
+    void calculateAbsolutePosition(const geometry_msgs::PoseStamped& t_robot_pose);
+    void applyMovingAverageFilter(double t_interval_length_sec);
 };
 
 
