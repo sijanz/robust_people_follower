@@ -47,67 +47,75 @@ TrackingModule::TrackingModule() : m_target{}
 void TrackingModule::processSkeletonData(const body_tracker_msgs::Skeleton& t_skeleton,
                                          const geometry_msgs::PoseStamped& t_robot_pose, StatusModule::Status& t_status)
 {
-    auto p{std::find(m_tracked_persons->begin(), m_tracked_persons->end(), t_skeleton.body_id)};
+    if (checkForValidData(t_skeleton)) {
+        auto p{std::find(m_tracked_persons->begin(), m_tracked_persons->end(), t_skeleton.body_id)};
 
-    // person is already in the list
-    if (p != m_tracked_persons->end()) {
+        // person is already in the list
+        if (p != m_tracked_persons->end()) {
 
-        // update the state of the tracked person
-        p->updateState(t_skeleton, t_robot_pose);
+            // update the state of the tracked person
+            p->updateState(t_skeleton, t_robot_pose);
 
-        // target
-        if (p->target()) {
+            // target
+            if (p->target()) {
 
-            // update target information
-            m_target = *p;
+                // update target information
+                m_target = *p;
 
-            // check for gestures
-            if (t_skeleton.gesture == 2 && p->correctHandHeight()) {
-                if (p->gestureBegin() == ros::Time{0})
-                    p->gestureBegin() = ros::Time::now();
-                /*
-                else {
+                // check for gestures
+                if (t_skeleton.gesture == 2 && p->correctHandHeight()) {
+                    if (p->gestureBegin() == ros::Time{0})
+                        p->gestureBegin() = ros::Time::now();
+                    /*
+                    else {
 
-                 // TODO: test, clear waypoints
-                    // target chooses to not being followed anymore
-                    if (ros::Time::now().sec - p->gestureBegin().sec >= 3) {
-                        p->target() = false;
-                        m_target = Person{body_tracker_msgs::Skeleton{}};
-                        t_status = StatusModule::Status::WAITING;
-                        p->gestureBegin() = ros::Time{0};
+                     // TODO: test, clear waypoints
+                        // target chooses to not being followed anymore
+                        if (ros::Time::now().sec - p->gestureBegin().sec >= 3) {
+                            p->target() = false;
+                            m_target = Person{body_tracker_msgs::Skeleton{}};
+                            t_status = StatusModule::Status::WAITING;
+                            p->gestureBegin() = ros::Time{0};
+                        }
+                    }
+                     */
+                }
+            }
+
+                // other persons
+            else {
+
+                // FIXME: doesn't work properly
+                // check for gestures
+                if (t_skeleton.gesture == 2 && p->correctHandHeight()) {
+                    if (p->gestureBegin() == ros::Time{0})
+                        p->gestureBegin() = ros::Time::now();
+                    else {
+
+                        // new target selected after 3 seconds of closing both hands
+                        if (ros::Time::now().sec - p->gestureBegin().sec >= 3) {
+                            p->target() = true;
+                            m_target = *p;
+                            t_status = StatusModule::Status::FOLLOWING;
+
+                            // reset gesture beginning time
+                            p->gestureBegin() = ros::Time{0};
+                        }
                     }
                 }
-                 */
             }
         }
 
-            // other persons
-        else {
-
-            // FIXME: doesn't work properly
-            // check for gestures
-            if (t_skeleton.gesture == 2 && p->correctHandHeight()) {
-                if (p->gestureBegin() == ros::Time{0})
-                    p->gestureBegin() = ros::Time::now();
-                else {
-
-                    // new target selected after 3 seconds of closing both hands
-                    if (ros::Time::now().sec - p->gestureBegin().sec >= 3) {
-                        p->target() = true;
-                        m_target = *p;
-                        t_status = StatusModule::Status::FOLLOWING;
-
-                        // reset gesture beginning time
-                        p->gestureBegin() = ros::Time{0};
-                    }
-                }
-            }
-        }
+            // add new person if skeleton id is not in list
+        else
+            m_tracked_persons->emplace_back(Person{t_skeleton});
     }
+}
 
-        // add new person if skeleton id is not in list
-    else
-        m_tracked_persons->emplace_back(Person{t_skeleton});
+
+bool TrackingModule::checkForValidData(const body_tracker_msgs::Skeleton& t_skeleton)
+{
+    return std::abs(t_skeleton.centerOfMass.y) < 1100;
 }
 
 

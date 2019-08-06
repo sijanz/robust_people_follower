@@ -137,6 +137,9 @@ private:
 
     /** @brief A list persons currently tracked  */
     std::shared_ptr<std::vector<Person>> m_tracked_persons{};
+
+
+    static bool checkForValidData(const body_tracker_msgs::Skeleton& t_skeleton);
 };
 
 
