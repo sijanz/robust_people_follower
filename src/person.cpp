@@ -49,20 +49,23 @@ Person::Person(const body_tracker_msgs::Skeleton& t_skeleton)
 
 void Person::printInfo() const
 {
-    ROS_INFO("id: %d, is target: %d, distance: %f, gestures: %d, correct height: %d",
-             m_skeleton.body_id, m_is_target, m_skeleton.centerOfMass.x, m_skeleton.gesture, correctHandHeight());
+    ROS_INFO("id: %d, is target: %d, distance: %f, gestures: %d, correct height: %d, last seen: %f",
+             m_skeleton.body_id, m_is_target, m_skeleton.centerOfMass.x, m_skeleton.gesture, this->correctHandHeight(),
+             this->lastSeen());
 }
 
 
 void Person::printVerboseInfo() const
 {
     ROS_INFO_STREAM("id : " << m_skeleton.body_id);
-    ROS_INFO_STREAM("  velocity: " << m_velocity);
+    if (!m_poses->empty()) {
+        ROS_INFO_STREAM("  pose vector size: " << m_poses->size());
+        ROS_INFO_STREAM("  last seen: " << this->lastSeen());
+    }
     ROS_INFO_STREAM("  mean velocity: " << m_mean_velocity);
-    ROS_INFO_STREAM("  mean_velocities size: " << m_mean_velocities.size());
-    ROS_INFO_STREAM("  mean angles size: " << m_mean_angles.size());
-    ROS_INFO_STREAM("  mean angle: " << m_mean_angle);
-    ROS_INFO_STREAM("  theta: " << yawFromPose(m_current_pose));
+    ROS_INFO_STREAM("  mean mean veloctiy: " << m_mean_mean_velocity);
+    ROS_INFO_STREAM("  mean angle: " << m_mean_angle * (180 / M_PI));
+    ROS_INFO_STREAM("  mean mean angle: " << m_mean_mean_angle * (180 / M_PI));
     ROS_INFO_STREAM("  distance: " << m_skeleton.centerOfMass.x);
     ROS_INFO_STREAM("  delta-y: " << m_skeleton.centerOfMass.y << "\n");
 }
@@ -86,7 +89,7 @@ void Person::updateState(const body_tracker_msgs::Skeleton& t_skeleton, const ge
         m_poses->emplace_back(m_current_pose);
 
         calculateVelocity();
-        applyMovingAverageFilter(1);
+        applyMovingAverageFilter(0.5);
         updatePose();
         m_values_set = true;
     }
@@ -126,7 +129,7 @@ void Person::applyMovingAverageFilter(const double t_interval_length_sec)
     auto sum_sin{0.0};
     auto sum_cos{0.0};
     for (const auto& ps : *m_poses) {
-        if (ros::Time::now() - ps.header.stamp <= ros::Duration{t_interval_length_sec}) {
+        if ((ros::Time::now() - ps.header.stamp) <= ros::Duration{t_interval_length_sec}) {
 
             auto current_pose{geometry_msgs::PoseStamped{}};
             current_pose.pose.orientation.x = ps.pose.orientation.x;
@@ -147,13 +150,31 @@ void Person::applyMovingAverageFilter(const double t_interval_length_sec)
     if (m_mean_angles.size() > 200)
         m_mean_angles.pop_front();
 
+    count = 0;
+    sum_sin = 0.0;
+    sum_cos = 0.0;
+
+    for (const auto& as : m_mean_angles) {
+        if ((ros::Time::now() - as.stamp) <= ros::Duration{t_interval_length_sec}) {
+            sum_sin += sin(as.angle);
+            sum_cos += cos(as.angle);
+            ++count;
+        }
+    }
+
+    m_mean_mean_angle = atan2(((1.0 / count) * sum_sin), ((1.0 / count) * sum_cos));
+    m_mean_mean_angles.emplace_back(AngleStamped{m_mean_mean_angle, ros::Time::now()});
+
+    if (m_mean_mean_angles.size() > 200)
+        m_mean_mean_angles.pop_front();
+
 
     // velocity
     // calculate and add new mean velocity
     count = 0;
     auto sum{0.0};
     for (const auto& vs : *m_velocities) {
-        if (ros::Time::now() - vs.stamp <= ros::Duration{t_interval_length_sec}) {
+        if ((ros::Time::now() - vs.stamp) <= ros::Duration{t_interval_length_sec}) {
             sum += vs.velocity;
             ++count;
         }
@@ -167,6 +188,21 @@ void Person::applyMovingAverageFilter(const double t_interval_length_sec)
 
     if (m_mean_velocities.size() > 200)
         m_mean_velocities.pop_front();
+
+    count = 0;
+    sum = 0.0;
+    for (const auto& vs : m_mean_velocities) {
+        if ((ros::Time::now() - vs.stamp) <= ros::Duration{t_interval_length_sec}) {
+            sum += vs.velocity;
+            ++count;
+        }
+    }
+
+    m_mean_mean_velocity = sum / count;
+    m_mean_mean_velocities.emplace_back(VelocityStamped{m_mean_mean_velocity, ros::Time::now()});
+
+    if (m_mean_mean_velocities.size() > 200)
+        m_mean_mean_velocities.pop_front();
 }
 
 
