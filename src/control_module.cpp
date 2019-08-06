@@ -77,7 +77,7 @@ geometry_msgs::Twist ControlModule::velocityCommand(StatusModule::Status& t_stat
     if (distance_to_target == 0)
         distance_to_target = t_follow_threshold + 200;
 
-    if (t_status == StatusModule::Status::FOLLOWING && distance_to_target < t_follow_threshold)
+    if (t_status == StatusModule::Status::FOLLOWING && distance_to_target < t_follow_threshold + 400)
         m_waypoint_list->clear();
 
     // set status to SEARCHING if waypoint list is empty
@@ -85,6 +85,9 @@ geometry_msgs::Twist ControlModule::velocityCommand(StatusModule::Status& t_stat
         t_status = StatusModule::Status::SEARCHING;
 
     auto speed{geometry_msgs::Twist{}};
+
+    if (distance_to_target > (t_follow_threshold + 400))
+        addNewWaypoint(t_target.pose(), 4);
 
     // if target is too near, move backwards
     if (distance_to_target < 1000) {
@@ -112,8 +115,24 @@ geometry_msgs::Twist ControlModule::velocityCommand(StatusModule::Status& t_stat
         } else
             speed.angular.z = 0;
 
+    } else if (distance_to_target >= t_follow_threshold && distance_to_target <= t_follow_threshold + 400) {
+
+        speed.linear.x = 1.5 * (distance_to_target / 1000) - 2.7;
+
+        // maximum of 0.6 m/s linear velocity
+        if (speed.linear.x > 0.6)
+            speed.linear.x = 0.6;
+
+        if (t_target.yDeviation() < -50) {
+            speed.angular.z = -0.0025 * std::abs(t_target.yDeviation());
+        } else if (t_target.yDeviation() > 50) {
+            speed.angular.z = 0.0025 * t_target.yDeviation();
+        } else
+            speed.angular.z = 0;
+
+
         // target is above threshold, follow him using waypoints
-    } else if (!m_waypoint_list->empty()) {
+    } else if (distance_to_target > (t_follow_threshold + 400) && !m_waypoint_list->empty()) {
 
         auto current_goal{m_waypoint_list->at(0)};
 
@@ -133,7 +152,7 @@ geometry_msgs::Twist ControlModule::velocityCommand(StatusModule::Status& t_stat
         auto distance_to_goal{sqrt(pow(current_goal.point.x - t_pose.pose.position.x, 2) +
                                    pow(current_goal.point.y - t_pose.pose.position.y, 2))};
 
-        auto speed_linear{0.4};
+        auto speed_linear{0.6};
 
         if (t_status == StatusModule::Status::FOLLOWING) {
 
