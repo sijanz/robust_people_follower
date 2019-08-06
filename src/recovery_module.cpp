@@ -34,53 +34,45 @@
 
 
 #include <geometry_msgs/PointStamped.h>
+#include <angles/angles.h>
 
 #include "robust_people_follower/recovery_module.h"
 #include "robust_people_follower/status_module.h"
 
 
-void RecoveryModule::predictTargetPosition(const Person& t_target, const double t_frequency)
+void RecoveryModule::predictTargetPosition(const Person& t_target, const double t_interval_sec)
 {
     // velocity
-    auto velocity{0.0};
-    int count{0};
-    for (const auto& vs : t_target.meanVelocities()) {
-        if (t_target.lastSeen() - vs.stamp < ros::Duration{5}) {
-            velocity += vs.velocity;
-            ++count;
-        }
-    }
-
-    velocity /= count;
+    auto velocity{t_target.meanVelocity()};
 
     // DEBUG
-    ROS_INFO_STREAM("estimateTargetPosition: velocity: " << velocity);
+    ROS_INFO_STREAM("velocity: " << velocity);
 
 
     // acceleration
     auto delta_v{0.0};
     auto delta_t_v{0.0};
     for (int i = 0; i < t_target.meanVelocities().size() - 2; ++i) { // because last entry is way too high
-        if (t_target.lastSeen() - t_target.meanVelocities()[i].stamp < ros::Duration{0.5}) {
+        if (t_target.pose().header.stamp - t_target.meanVelocities()[i].stamp < ros::Duration{t_interval_sec}) {
             delta_v += t_target.meanVelocities()[i + 1].velocity - t_target.meanVelocities()[i].velocity;
-            delta_t_v += t_target.meanVelocities()[i + 1].stamp.toSec() - t_target.meanVelocities()[i].stamp.toSec();
+            delta_t_v += t_target.meanVelocities()[i + 1].stamp.toSec() -
+                         t_target.meanVelocities()[i].stamp.toSec();
         }
     }
 
     auto acceleration{delta_v / delta_t_v};
 
     // DEBUG
-    ROS_INFO_STREAM("estimateTargetPosition: acceleration: " << acceleration);
+    ROS_INFO_STREAM("acceleration: " << acceleration);
 
 
     // yaw rate
-    // https://gamedev.stackexchange.com/questions/4467/comparing-angles-and-working-out-the-difference/169509#169509
     auto delta_a{0.0};
     auto delta_t_a{0.0};
     for (int i = 0; i < t_target.meanAngles().size() - 1; ++i) {
-        if (t_target.lastSeen() - t_target.meanAngles()[i].stamp < ros::Duration{0.5}) {
-            delta_a += fmod(t_target.meanAngles()[i + 1].angle - t_target.meanAngles()[i].angle
-                            + (3 * M_PI), 2 * M_PI) - M_PI;
+        if (t_target.pose().header.stamp - t_target.meanAngles()[i].stamp < ros::Duration{t_interval_sec}) {
+            delta_a += angles::shortest_angular_distance(t_target.meanAngles()[i].angle,
+                                                         t_target.meanAngles()[i + 1].angle);
             delta_t_a += t_target.meanAngles()[i + 1].stamp.toSec() - t_target.meanAngles()[i].stamp.toSec();
         }
     }
@@ -88,21 +80,21 @@ void RecoveryModule::predictTargetPosition(const Person& t_target, const double 
     auto yaw_rate{delta_a / delta_t_a};
 
     // DEBUG
-    ROS_INFO_STREAM("estimateTargetPosition: yaw_rate: " << yaw_rate);
+    ROS_INFO_STREAM("yaw rate: " << yaw_rate);
 
 
     // theta
     auto theta{t_target.meanAngle()};
 
     //DEBUG
-    ROS_INFO_STREAM("estimateTargetPosition: theta: " << theta);
+    ROS_INFO_STREAM("theta: " << theta);
 
 
     // delta_t
-    auto delta_t{(ros::Time::now() - t_target.lastSeen()).toSec()};
+    auto delta_t{t_target.lastSeen()};
 
     // DEBUG
-    ROS_INFO_STREAM("estimateTargetPosition: delta_t: " << delta_t);
+    ROS_INFO_STREAM("delta t: " << delta_t);
 
 
     // estimated position
@@ -122,21 +114,21 @@ void RecoveryModule::predictTargetPosition(const Person& t_target, const double 
 
 
         // estimated velocity
-        auto estimated_velocity{sqrt(pow((m_old_predicted_target_position.x - m_predicted_target_position.x), 2)
-                                     + pow((m_old_predicted_target_position.y - m_predicted_target_position.y), 2))
-                                / (1 / t_frequency)};
+        m_predicted_velocity = sqrt(pow((m_old_predicted_target_position.x - m_predicted_target_position.x), 2)
+                                    + pow((m_old_predicted_target_position.y - m_predicted_target_position.y), 2))
+                               / (1 / 10.0); // TODO: do not use frequency
 
         // DEBUG
-        ROS_INFO_STREAM("estimated old position: [" << m_old_predicted_target_position.x << ", " <<
+        ROS_INFO_STREAM("predicted old position: [" << m_old_predicted_target_position.x << ", " <<
                                                     m_old_predicted_target_position.y << "]");
-        ROS_INFO_STREAM("estimated position: [" << m_predicted_target_position.x << ", " <<
+        ROS_INFO_STREAM("predicted position: [" << m_predicted_target_position.x << ", " <<
                                                 m_predicted_target_position.y << "]");
-        ROS_INFO_STREAM("estimated_velocity: " << estimated_velocity);
+        ROS_INFO_STREAM("predicted velocity: " << m_predicted_velocity);
 
         m_old_predicted_target_position = m_predicted_target_position;
 
         // stop estimation before velocity goes "negative"
-        if (estimated_velocity < 0.1 && (ros::Time::now() - t_target.lastSeen()) > ros::Duration{0.2})
+        if (m_predicted_velocity < 0.1 && t_target.lastSeen() > 0.2)
             m_prediction_stop = true;
     }
 

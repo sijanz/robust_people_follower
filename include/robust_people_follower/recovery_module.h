@@ -83,11 +83,13 @@ public:
      */
     inline const double predictionRadius() const { return m_prediction_radius; }
 
+    inline const double predictedVelocity() const { return m_predicted_velocity; }
+
 
     /*
      * ********** STANDARD METHODS **********
      */
-    void predictTargetPosition(const Person& t_target, double t_frequency);
+    void predictTargetPosition(const Person& t_target, double t_interval_sec);
     void reIdentify(Person& t_target, const std::shared_ptr<std::vector<Person>>& t_tracked_persons,
                     const std::shared_ptr<std::deque<geometry_msgs::PointStamped>>& t_waypoint_list,
                     StatusModule::Status& t_status);
@@ -97,6 +99,7 @@ private:
     geometry_msgs::Point32 m_old_predicted_target_position{};
     bool m_prediction_stop{};
     double m_prediction_radius{};
+    double m_predicted_velocity{};
 };
 
 
