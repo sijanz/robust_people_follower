@@ -119,6 +119,10 @@ public:
                              StatusModule::Status& t_status);
 
 
+    // TODO: comment
+    void checkForTarget(StatusModule::Status& t_status);
+
+
     /**
      * @brief Removes entries of persons that are not tracked anymore. An entry gets deleted if the distance and
      * y-deviation is equal to 0.s
