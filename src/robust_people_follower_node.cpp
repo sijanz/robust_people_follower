@@ -71,17 +71,14 @@ void RobustPeopleFollower::runLoop()
     // LOG
     std::ofstream file{};
     file.open("/home/simon/log.csv");
-    file << "time,x,y,distance,velocity,p_x,p_y\n";
-
+    file << "t,x,y,d,y_d,v,m_v,m_m_v,th,m_th,m_m_th,p_x,p_y,p_v\n";
     auto start_time{ros::Time::now().toSec()};
 
     while (ros::ok()) {
 
         processCallbacks();
 
-        // target is lost, set status to LOS_LOST
-        if (m_status_module.status() == StatusModule::Status::FOLLOWING && m_tracking_module.target().distance() == 0.0)
-            m_status_module.status() = StatusModule::Status::LOS_LOST;
+        m_tracking_module.checkForTarget(m_status_module.status());
 
         // check the robot's status
         switch (m_status_module.status()) {
@@ -110,12 +107,16 @@ void RobustPeopleFollower::runLoop()
         if (m_status_module.status() == StatusModule::Status::FOLLOWING) {
             file << current_time << "," << m_tracking_module.target().pose().pose.position.x << ","
                  << m_tracking_module.target().pose().pose.position.y << ","
-                 << m_tracking_module.target().distance() / 1000
-                 << "," << m_tracking_module.target().meanVelocity() << ",0,0\n";
+                 << m_tracking_module.target().distance() / 1000 << "," << m_tracking_module.target().yDeviation()
+                 << "," << m_tracking_module.target().velocity() << "," << m_tracking_module.target().meanVelocity()
+                 << "," << m_tracking_module.target().meanMeanVelocity() << "," << m_tracking_module.target().angle()
+                 << "," << m_tracking_module.target().meanAngle() << "," << m_tracking_module.target().meanMeanAngle()
+                 << ",0,0,0\n";
         } else if (m_status_module.status() == StatusModule::Status::LOS_LOST
                    || m_status_module.status() == StatusModule::Status::SEARCHING) {
-            file << current_time << ",0,0,0,0," << m_recovery_module.predictedTargetPosition().x << ","
-                 << m_recovery_module.predictedTargetPosition().y << "\n";
+            file << current_time << ",0,0,0,0,0,0,0,0,0,0," << m_recovery_module.predictedTargetPosition().x << ","
+                 << m_recovery_module.predictedTargetPosition().y << "," << m_recovery_module.predictedVelocity()
+                 << "\n";
         }
 
         // delete entries of persons that aren't tracked anymore
@@ -144,10 +145,12 @@ void RobustPeopleFollower::debugPrintout() const
     ROS_INFO_STREAM("ROS time: " << ros::Time::now().sec);
     m_status_module.printInfo();
 
-    ROS_INFO_STREAM("target information:");
-    m_tracking_module.target().printVerboseInfo();
+    if (m_status_module.status() != StatusModule::Status::WAITING) {
+        ROS_INFO_STREAM("target information:");
+        m_tracking_module.target().printVerboseInfo();
 
-    ROS_INFO_STREAM("goal list size: " << m_control_module.waypoints()->size());
+        ROS_INFO_STREAM("goal list size: " << m_control_module.waypoints()->size());
+    }
 
     ROS_INFO_STREAM("tracked persons: " << m_tracking_module.trackedPersons()->size());
     for (const auto& p : *m_tracking_module.trackedPersons())
@@ -156,10 +159,6 @@ void RobustPeopleFollower::debugPrintout() const
 
 void RobustPeopleFollower::followTarget()
 {
-    // add a new waypoint if target is above the follow threshold
-    if (m_tracking_module.target().distance() > FOLLOW_THRESHOLD)
-        m_control_module.addNewWaypoint(m_tracking_module.target().pose(), 4);
-
     // move the robot
     m_velocity_command_pub.publish(m_control_module.velocityCommand(m_status_module.status(),
                                                                     m_status_module.pose(),
@@ -169,10 +168,10 @@ void RobustPeopleFollower::followTarget()
 
 void RobustPeopleFollower::searchForTarget()
 {
-    if (ros::Time::now() - m_tracking_module.target().lastSeen() < ros::Duration{SEARCH_TIMEOUT}) {
+    if (m_tracking_module.target().lastSeen() < SEARCH_TIMEOUT) {
 
         // predict the target's position according to the CTRA model
-        m_recovery_module.predictTargetPosition(m_tracking_module.target(), LOOP_FREQUENCY);
+        m_recovery_module.predictTargetPosition(m_tracking_module.target(), 1.0);
 
         // look at the predicted position if the last waypoint is reached
         if (m_control_module.waypoints()->empty()) {
@@ -189,8 +188,28 @@ void RobustPeopleFollower::searchForTarget()
                                                                             FOLLOW_THRESHOLD));
         }
 
+
+        // TODO: move to recovery module
+        auto theta{Object2DSpace::yawFromPose(m_status_module.pose())};
+
+        auto rotation{tf::Matrix3x3{
+                cos(theta), -sin(theta), m_status_module.pose().pose.position.x,
+                sin(theta), cos(theta), m_status_module.pose().pose.position.y,
+                0.0, 0.0, 1.0
+        }};
+
+        auto global_vector{tf::Vector3{m_recovery_module.predictedTargetPosition().x,
+                                       m_recovery_module.predictedTargetPosition().y, 1.0}};
+        auto local_vector{rotation.inverse() * global_vector};
+
+        auto local_angle_to_goal{atan2(local_vector.y(), local_vector.x())};
+
+        // DEBUG
+        ROS_INFO_STREAM("angle to predicted position: " << local_angle_to_goal);
+
         // re-identify the target if possible
-        if (ros::Time::now() - m_tracking_module.target().lastSeen() > ros::Duration{0.1})
+        if (m_tracking_module.target().lastSeen() > 0.1 && m_tracking_module.target().lastSeen() < 10.0)
+//            && std::abs(local_angle_to_goal) < 0.1)
             m_recovery_module.reIdentify(m_tracking_module.target(), m_tracking_module.trackedPersons(),
                                          m_control_module.waypoints(), m_status_module.status());
 
