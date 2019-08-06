@@ -131,13 +131,18 @@ public:
      */
     void calculateVelocity()
     {
-        auto delta_t{(m_current_pose.header.stamp - m_old_pose.header.stamp).toSec()};
 
-        m_velocity = sqrt(pow((m_old_pose.pose.position.x - m_current_pose.pose.position.x), 2) +
-                          pow((m_old_pose.pose.position.y - m_current_pose.pose.position.y), 2)) / delta_t;
+        // if the current or old position is not specified, the velocity is set to 0
+        if (m_current_pose.pose.position.x == 0.0 || m_old_pose.pose.position.x == 0.0)
+            m_velocity = 0.0;
 
-        // DEBUG
-        ROS_INFO_STREAM("delta_t: " << delta_t << ", velocity: " << m_velocity);
+            // otherwise, the velocity is calculated by the distance between the last two points divided by the difference
+            // in time
+        else {
+            auto delta_t{(m_current_pose.header.stamp - m_old_pose.header.stamp).toSec()};
+            m_velocity = sqrt(pow((m_old_pose.pose.position.x - m_current_pose.pose.position.x), 2) +
+                              pow((m_old_pose.pose.position.y - m_current_pose.pose.position.y), 2)) / delta_t;
+        }
     }
 
 
