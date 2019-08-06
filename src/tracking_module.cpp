@@ -111,11 +111,22 @@ void TrackingModule::processSkeletonData(const body_tracker_msgs::Skeleton& t_sk
 }
 
 
+void TrackingModule::checkForTarget(StatusModule::Status& t_status)
+{
+    if (t_status == StatusModule::Status::FOLLOWING && m_target.lastSeen() > 0.2) {
+        t_status = StatusModule::Status::LOS_LOST;
+
+        // DEBUG
+        ROS_INFO_STREAM("target lost!");
+    }
+}
+
+
 void TrackingModule::managePersonList()
 {
     auto it = m_tracked_persons->begin();
     while (it != m_tracked_persons->end()) {
-        if (it->distance() == 0 && it->yDeviation() == 0)
+        if (it->lastSeen() > 0.3)
             it = m_tracked_persons->erase(it);
         else
             ++it;
