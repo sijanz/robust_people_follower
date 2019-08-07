@@ -134,7 +134,7 @@ void TrackingModule::managePersonList()
 {
     auto it = m_tracked_persons->begin();
     while (it != m_tracked_persons->end()) {
-        if (it->lastSeen() > 0.3)
+        if (it->lastSeen() > 0.3 || it->lastSeen() == 0)
             it = m_tracked_persons->erase(it);
         else
             ++it;
