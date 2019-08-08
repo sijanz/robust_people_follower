@@ -40,6 +40,7 @@
 #include <deque>
 
 #include <ros/ros.h>
+#include <kobuki_msgs/BumperEvent.h>
 #include <body_tracker_msgs/Skeleton.h>
 #include <geometry_msgs/Twist.h>
 #include <nav_msgs/Odometry.h>
@@ -87,6 +88,8 @@ public:
     /*
      * ********** CALLBACK FUNCTIONS **********
      */
+
+    void bumperCallback(const kobuki_msgs::BumperEventConstPtr& msg);
 
     /**
      * @brief Callback function for odometry data. Stores data from messages of the "/odom"-topic and assigns them to
@@ -155,6 +158,8 @@ private:
     /** @brief The ROS node handle. Is used to subscribe and publish to ROS topics. */
     ros::NodeHandle m_nh{};
 
+    bool m_emergency_stop{};
+
 
     /*
      * ********** ROS SUBSCRIBERS **********
@@ -165,6 +170,8 @@ private:
 
     /** @brief Subscribes to the "body_tracker/skeleton"-topic at a rate of 10 times per second. */
     ros::Subscriber m_skeleton_sub{};
+
+    ros::Subscriber m_bumper_sub{};
 
 
     /*

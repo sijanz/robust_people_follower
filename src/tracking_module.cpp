@@ -119,9 +119,9 @@ bool TrackingModule::checkForValidData(const body_tracker_msgs::Skeleton& t_skel
 }
 
 
-void TrackingModule::checkForTarget(StatusModule::Status& t_status)
+void TrackingModule::checkForTargetLoss(StatusModule::Status& t_status)
 {
-    if (t_status == StatusModule::Status::FOLLOWING && m_target.lastSeen() > 0.2) {
+    if (t_status == StatusModule::Status::FOLLOWING && m_target.lastSeen() > 0.1) {
         t_status = StatusModule::Status::LOS_LOST;
 
         // DEBUG

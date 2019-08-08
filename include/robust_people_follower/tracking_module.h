@@ -120,7 +120,7 @@ public:
 
 
     // TODO: comment
-    void checkForTarget(StatusModule::Status& t_status);
+    void checkForTargetLoss(StatusModule::Status& t_status);
 
 
     /**

@@ -41,10 +41,11 @@
 
 
 RobustPeopleFollower::RobustPeopleFollower(const std::string& t_name)
-        : m_status_module{}, m_tracking_module{}, m_control_module{}, m_recovery_module{}
+        : m_emergency_stop{false}, m_status_module{}, m_tracking_module{}, m_control_module{}, m_recovery_module{}
 {
     m_name = t_name;
 
+    m_bumper_sub = m_nh.subscribe("/mobile_base/events/bumper", 10, &RobustPeopleFollower::bumperCallback, this);
     m_odom_sub = m_nh.subscribe("/odom", 10, &RobustPeopleFollower::odometryCallback, this);
     m_skeleton_sub = m_nh.subscribe("/body_tracker/skeleton", 10, &RobustPeopleFollower::skeletonCallback, this);
 
@@ -57,6 +58,7 @@ RobustPeopleFollower::~RobustPeopleFollower()
 {
     ROS_INFO_STREAM(m_name << " shutting down");
 
+    m_bumper_sub.shutdown();
     m_odom_sub.shutdown();
     m_skeleton_sub.shutdown();
     m_velocity_command_pub.shutdown();
@@ -77,8 +79,6 @@ void RobustPeopleFollower::runLoop()
     while (ros::ok()) {
 
         processCallbacks();
-
-        m_tracking_module.checkForTarget(m_status_module.status());
 
         // check the robot's status
         switch (m_status_module.status()) {
@@ -131,6 +131,23 @@ void RobustPeopleFollower::processCallbacks()
 {
     ros::spinOnce();
 
+    // do an emergency stop if the flag is set
+    if (m_emergency_stop) {
+        m_status_module.status() = StatusModule::Status::WAITING;
+
+        // publish Twist message with values initialized to 0
+        m_velocity_command_pub.publish(geometry_msgs::Twist{});
+
+        // reset target information
+        m_tracking_module.target() = Person{};
+
+        m_emergency_stop = false;
+    }
+
+    // check if a target is lost
+    m_tracking_module.checkForTargetLoss(m_status_module.status());
+
+    // reset flags to only process data once in a loop iteration
     m_status_module.valuesSet() = false;
     m_tracking_module.target().valuesSet() = false;
     for (auto& p : *m_tracking_module.trackedPersons())
@@ -223,6 +240,13 @@ void RobustPeopleFollower::searchForTarget()
         m_tracking_module.target() = Person{};
         m_status_module.status() = StatusModule::Status::WAITING;
     }
+}
+
+
+void RobustPeopleFollower::bumperCallback(const kobuki_msgs::BumperEventConstPtr& msg)
+{
+    if (msg->state == kobuki_msgs::BumperEvent::PRESSED)
+        m_emergency_stop = true;
 }
 
 

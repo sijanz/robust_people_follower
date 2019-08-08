@@ -77,8 +77,13 @@ geometry_msgs::Twist ControlModule::velocityCommand(StatusModule::Status& t_stat
     if (distance_to_target == 0)
         distance_to_target = t_follow_threshold + 200;
 
-    if (t_status == StatusModule::Status::FOLLOWING && distance_to_target < t_follow_threshold + 400)
+    if (t_status == StatusModule::Status::FOLLOWING && distance_to_target < t_follow_threshold + 400) {
+
+        // DEBUG
+        ROS_INFO_STREAM("CLEARED WAYPOINT LIST!!!");
+
         m_waypoint_list->clear();
+    }
 
     // set status to SEARCHING if waypoint list is empty
     if (t_status == StatusModule::Status::LOS_LOST && m_waypoint_list->empty())
