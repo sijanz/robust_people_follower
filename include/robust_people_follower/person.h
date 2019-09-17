@@ -72,9 +72,7 @@ public:
     inline const double distance() const { return m_skeleton.centerOfMass.x; }
     inline const double yDeviation() const { return m_skeleton.centerOfMass.y; }
     inline const double meanVelocity() const { return m_mean_velocity; }
-    inline const double meanMeanVelocity() const { return m_mean_mean_velocity; }
     inline const double meanAngle() const { return m_mean_angle; }
-    inline const double meanMeanAngle() const { return m_mean_mean_angle; };
 
     inline const double lastSeen() const
     {
@@ -84,7 +82,6 @@ public:
 
     inline const std::deque<VelocityStamped>& meanVelocities() const { return m_mean_velocities; }
     inline const std::deque<AngleStamped>& meanAngles() const { return m_mean_angles; }
-    inline const std::deque<AngleStamped>& meanMeanAngles() const { return m_mean_angles; }
 
     void printVerboseInfo() const;
     bool correctHandHeight() const;

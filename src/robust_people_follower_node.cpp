@@ -117,12 +117,11 @@ void RobustPeopleFollower::runLoop()
                  << m_tracking_module.target().pose().pose.position.y << ","
                  << m_tracking_module.target().distance() / 1000 << "," << m_tracking_module.target().yDeviation()
                  << "," << m_tracking_module.target().velocity() << "," << m_tracking_module.target().meanVelocity()
-                 << "," << m_tracking_module.target().meanMeanVelocity() << "," << m_tracking_module.target().angle()
-                 << "," << m_tracking_module.target().meanAngle() << "," << m_tracking_module.target().meanMeanAngle()
-                 << ",0,0,0," << elapsed_time.count() << "\n";
+                 << "," << m_tracking_module.target().angle()
+                 << "," << m_tracking_module.target().meanAngle() << ",0,0,0," << elapsed_time.count() << "\n";
         } else if (m_status_module.status() == StatusModule::Status::LOS_LOST
                    || m_status_module.status() == StatusModule::Status::SEARCHING) {
-            file << current_time << ",0,0,0,0,0,0,0,0,0,0," << m_recovery_module.predictedTargetPosition().x << ","
+            file << current_time << ",0,0,0,0,0,0,0,0," << m_recovery_module.predictedTargetPosition().x << ","
                  << m_recovery_module.predictedTargetPosition().y << "," << m_recovery_module.predictedVelocity() << ","
                  << elapsed_time.count() << "\n";
         }
