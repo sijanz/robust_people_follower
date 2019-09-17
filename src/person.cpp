@@ -39,8 +39,8 @@
 
 
 Person::Person(const body_tracker_msgs::Skeleton& t_skeleton)
-        : m_is_target{}, m_skeleton{t_skeleton}, m_gesture_begin{}, m_mean_velocity{}, m_mean_angle{},
-          m_mean_velocities{std::deque<VelocityStamped>{}}, m_mean_angles{std::deque<AngleStamped>{}}
+        : m_is_target{}, m_skeleton{t_skeleton}, m_gesture_begin{}, m_mean_velocity{},
+          m_mean_angle{}, m_mean_velocities{std::deque<VelocityStamped>{}}, m_mean_angles{std::deque<AngleStamped>{}}
 {
     m_poses = std::make_shared<std::vector<geometry_msgs::PoseStamped>>();
     m_velocities = std::make_shared<std::vector<VelocityStamped>>();
@@ -49,9 +49,9 @@ Person::Person(const body_tracker_msgs::Skeleton& t_skeleton)
 
 void Person::printInfo() const
 {
-    ROS_INFO("id: %d, is target: %d, distance: %f, gestures: %d, correct height: %d, last seen: %f",
-             m_skeleton.body_id, m_is_target, m_skeleton.centerOfMass.x, m_skeleton.gesture, this->correctHandHeight(),
-             this->lastSeen());
+    ROS_INFO("id: %d, is target: %d, distance: %f, velocity: %f, gestures: %d, correct height: %d, last seen: %f",
+             m_skeleton.body_id, m_is_target, m_skeleton.centerOfMass.x, m_velocity, m_skeleton.gesture,
+             this->correctHandHeight(), this->lastSeen());
 }
 
 
@@ -74,6 +74,7 @@ void Person::printVerboseInfo() const
 void Person::updateState(const body_tracker_msgs::Skeleton& t_skeleton, const geometry_msgs::PoseStamped& t_robot_pose)
 {
     if (!m_values_set) {
+
         m_skeleton = t_skeleton;
         calculateAbsolutePosition(t_robot_pose);
 

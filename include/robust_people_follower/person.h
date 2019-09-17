@@ -83,7 +83,6 @@ public:
     }
 
     inline const std::deque<VelocityStamped>& meanVelocities() const { return m_mean_velocities; }
-    inline const std::deque<VelocityStamped>& meanMeanVelocities() const { return m_mean_mean_velocities; }
     inline const std::deque<AngleStamped>& meanAngles() const { return m_mean_angles; }
     inline const std::deque<AngleStamped>& meanMeanAngles() const { return m_mean_angles; }
 

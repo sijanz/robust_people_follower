@@ -73,17 +73,11 @@ geometry_msgs::Twist ControlModule::velocityCommand(StatusModule::Status& t_stat
 {
     auto distance_to_target{t_target.distance()};
 
-    // FIXME: O O F
     if (distance_to_target == 0)
         distance_to_target = t_follow_threshold + 200;
 
-    if (t_status == StatusModule::Status::FOLLOWING && distance_to_target < t_follow_threshold + 400) {
-
-        // DEBUG
-        ROS_INFO_STREAM("CLEARED WAYPOINT LIST!!!");
-
+    if (t_status == StatusModule::Status::FOLLOWING && distance_to_target < t_follow_threshold + 200)
         m_waypoint_list->clear();
-    }
 
     // set status to SEARCHING if waypoint list is empty
     if (t_status == StatusModule::Status::LOS_LOST && m_waypoint_list->empty())
@@ -91,7 +85,7 @@ geometry_msgs::Twist ControlModule::velocityCommand(StatusModule::Status& t_stat
 
     auto speed{geometry_msgs::Twist{}};
 
-    if (distance_to_target > (t_follow_threshold + 400))
+    if (distance_to_target > (t_follow_threshold + 200) && t_status == StatusModule::Status::FOLLOWING)
         addNewWaypoint(t_target.pose(), 4);
 
     // if target is too near, move backwards
@@ -137,7 +131,7 @@ geometry_msgs::Twist ControlModule::velocityCommand(StatusModule::Status& t_stat
 
 
         // target is above threshold, follow him using waypoints
-    } else if (distance_to_target > (t_follow_threshold + 400) && !m_waypoint_list->empty()) {
+    } else if (distance_to_target > (t_follow_threshold + 200) && !m_waypoint_list->empty()) {
 
         auto current_goal{m_waypoint_list->at(0)};
 

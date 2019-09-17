@@ -114,9 +114,10 @@ void RecoveryModule::predictTargetPosition(const Person& t_target, const double 
 
 
         // estimated velocity
-        m_predicted_velocity = sqrt(pow((m_old_predicted_target_position.x - m_predicted_target_position.x), 2)
-                                    + pow((m_old_predicted_target_position.y - m_predicted_target_position.y), 2))
-                               / (1 / 10.0); // TODO: do not use frequency
+        if (!(m_old_predicted_target_position.x == 0 && m_old_predicted_target_position.y == 0))
+            m_predicted_velocity = sqrt(pow((m_old_predicted_target_position.x - m_predicted_target_position.x), 2)
+                                        + pow((m_old_predicted_target_position.y - m_predicted_target_position.y), 2))
+                                   / (1 / 10.0); // TODO: do not use frequency
 
         // DEBUG
         ROS_INFO_STREAM("predicted old position: [" << m_old_predicted_target_position.x << ", " <<

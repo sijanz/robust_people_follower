@@ -119,9 +119,10 @@ bool TrackingModule::checkForValidData(const body_tracker_msgs::Skeleton& t_skel
 }
 
 
+// TODO: lose target if y_deviation is the same as t-1
 void TrackingModule::checkForTargetLoss(StatusModule::Status& t_status)
 {
-    if (t_status == StatusModule::Status::FOLLOWING && m_target.lastSeen() > 0.1) {
+    if (t_status == StatusModule::Status::FOLLOWING && target().lastSeen() > 0.05) {
         t_status = StatusModule::Status::LOS_LOST;
 
         // DEBUG
@@ -134,7 +135,7 @@ void TrackingModule::managePersonList()
 {
     auto it = m_tracked_persons->begin();
     while (it != m_tracked_persons->end()) {
-        if (it->lastSeen() > 0.3 || it->lastSeen() == 0)
+        if (it->lastSeen() > 0.1 || it->lastSeen() == 0)
             it = m_tracked_persons->erase(it);
         else
             ++it;
