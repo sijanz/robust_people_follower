@@ -11,7 +11,7 @@
 
 ## Installation
 ### CMake
-You maybe already have CMake on your machine. If you don't have it, you need to dowload it from their webpage: https://cmake.org/download/. When the dowload is finished, make a new directory and paste the downloaded file in this directory and unzip it.
+You maybe already have CMake on your machine. If you don't have it, you need to download it from their homepage at https://cmake.org/download/. When the download is finished, make a new directory and paste the downloaded file in this directory and unzip it.
 ```
 cd
 mkdir programs
@@ -23,7 +23,7 @@ sudo ./bootstrap && make && make install
 ```
 
 ### OpenNI
-Download the Orbbec OpenNI SDK from the following site: https://orbbec3d.com/develop/. Copy this zip file to the programs directory you've made with the installation of CMake. Unzip the file in this directry. Go to:
+Download the Orbbec OpenNI SDK from the following site: https://orbbec3d.com/develop/. Copy this zip file to the programs directory you've made with the installation of CMake. Unzip the file in this directory. Go to:
 ```
 cd programs/OpenNI_<your_version>/Linux
 ```
@@ -33,32 +33,32 @@ cd OpenNI-Linux-x64-2.3
 chmod +x install.sh
 sudo ./install.sh
 ```
-Plug your camera and run the command:
+Plug in your camera and run the command:
 ```
 source OpenNIDevEnvironment
 ```
-Before you can test visual samples, you will need freeglut3 header and libaries, please install:
+Before you can test visual samples, you need the freeglut3 header and libaries, so install them using the following commands:
 ```
 sudo apt-get install build-essential freeglut3 freeglut3-dev
 ```
-Now freeglut3 is install, build a sample and try if it works
+Since now freeglut3 is installed, build a sample and try if it works:
 ```
 cd Samples/SimpleViewer
 make
 cd Bin/x64-Release
 ./SimpleViewer
 ```
-If the program is correctly installed a new window opens with a yellow depth video stream as shown below.
 
 
 ### Orbbec Astra SDK
-Download the Orbbec astra SDK zip file for your machine from the the Orbbec site: https://orbbec3d.com/develop/. Copy this zip file to the directeroy /programs which you have made with the installation of CMake and unzip the file. Rename the unzipped folder to Astra_SDK for easier navigation through the folders. Go to and run:
+Download the Orbbec Astra SDK zip file for your machine from the the Orbbec site: https://orbbec3d.com/develop/.
+Copy this zip file to the directory /programs which you have made with the installation of CMake and unzip the file. Rename the unzipped folder to Astra_SDK for easier navigation through the folders. Go to and run:
 ```
 cd programs/Astra_SDK/install
 chmod +x install.sh
 sudo ./install.sh
 ```
-To test if the Astra SDK is installed properly, you need to have the SFML libraries. (more information can be found at their webpage: https://www.sfml-dev.org/)
+To test if the Astra SDK is installed properly, you need to have the SFML libraries. (more information can be found at their homepage at https://www.sfml-dev.org/)
 ```
 sudo apt-get install libsfml-dev
 ```
@@ -68,7 +68,7 @@ cd ..
 cd bin
 ./SimpleBodyViewer-SFML
 ```
-If the program is installed correctly, a new window pops up wich recognizes a human and draws a skeleton in the picture as shown below.
+If the program is installed correctly, a new window pops up which recognizes a human and draws a skeleton in the picture as shown below.
 
 ### astra_body_msgs
 The next step is to clone the package with the message type for the astra_body_tracker from this github repository: https://github.com/shinselrobots/body_tracker_msgs. In the terminal go to the source of your /catkin_ws and clone and build this package:
@@ -85,11 +85,10 @@ First step is to clone the astra_body_tracker from this github repository: https
 cd catkin_ws/src
 git clone https://github.com/KrisPiters/astra_body_tracker.git
 ```
-Before running catkin_make, make sure the path to the Astra_SDK in the CMakeLists.txt is updated to the path to your Astra_SDK. Herefor, open the CMakeLists.txt
-```
-gedit CMakeLists.txt
-```
-Change the paths at line 19 - 22 to the path to your Astra_SDK directory. When changed, build the package:
+Before running catkin_make, make sure the path to the Astra_SDK in the CMakeLists.txt is updated to the path to your Astra_SDK.
+To do that, open the CMakeLists.txt and change the paths at line 19 - 22 to the path to your Astra_SDK directory.
+
+When changed, build the package:
 ```
 cd ..
 catkin_make
