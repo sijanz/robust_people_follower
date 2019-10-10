@@ -7,7 +7,18 @@
 ## Installation
 
 ## Usage
-When starting the node, the robot automatically is in a passive WAITING mode. In order to select yourself as the target,
+If the camera and the Kobuki base are both connected to your laptop running ROS, execute the following command to start
+the Turtlebot:
+```
+roslaunch turtlebot_bringup minimal.launch
+```
+
+After that, the following command starts this node:
+```
+roslaunch robust_people_follower robust_people_follower.launch
+```
+
+After startup, the robot automatically is in a passive WAITING mode. In order to select yourself as the target,
 perform the following gesture: Close both of your hands to fists and hold them above your shoulder. Hold this gesture for
 at least 3 seconds.  
 ![Caption for the picture.](images/target_selection.png?raw=true)
