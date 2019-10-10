@@ -1,0 +1,5 @@
+<map id="Object2DSpace" name="Object2DSpace">
+<area shape="rect" id="node1" title="Represents a base class for objects in a 2&#45;dimensional Euclidean space. Holds information for the pos..." alt="" coords="131,5,273,244"/>
+<area shape="rect" id="node2" href="$classPerson.html" title=" " alt="" coords="5,292,193,721"/>
+<area shape="rect" id="node3" href="$classStatusModule.html" title="The Status Module manages information about the current state of the robot. It holds the robot&#39;s stat..." alt="" coords="218,439,391,575"/>
+</map>

@@ -1,13 +1,16 @@
 # A ROS package for robust following of a person
 
 ## Description
+For documentation, look [here](/html/index.html).
 
 ## Prerequisites
 - Laptop running ROS Kinetic on Ubuntu 16.04 or higher
 - Orbbec Astra Pro camera
 - Turtlebot 2
 
+
 ## Installation
+
 
 ## Usage
 If the camera and the Kobuki base are both connected to your laptop running ROS, execute the following command to start
@@ -16,7 +19,7 @@ the Turtlebot:
 roslaunch turtlebot_bringup minimal.launch
 ```
 
-After that, the following command starts this node:
+After that, use the following command to start this node:
 ```
 roslaunch robust_people_follower robust_people_follower.launch
 ```

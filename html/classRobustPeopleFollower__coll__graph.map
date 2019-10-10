@@ -1,0 +1,9 @@
+<map id="RobustPeopleFollower" name="RobustPeopleFollower">
+<area shape="rect" id="node1" title="This class represents the ROS node. It defines the subscribers along with their callback functions,..." alt="" coords="239,1208,449,1652"/>
+<area shape="rect" id="node2" href="$classControlModule.html" title="The Control Module creates velocity commands to control the robot. In order to replicates the target&#39;..." alt="" coords="5,936,165,1116"/>
+<area shape="rect" id="node3" href="$classTrackingModule.html" title="The Tracking Module processes data received from the /body_tracker/skeleton topic and manages a list ..." alt="" coords="190,929,357,1123"/>
+<area shape="rect" id="node4" href="$classPerson.html" title=" " alt="" coords="185,293,373,723"/>
+<area shape="rect" id="node5" href="$classObject2DSpace.html" title="Represents a base class for objects in a 2&#45;dimensional Euclidean space. Holds information for the pos..." alt="" coords="303,5,444,244"/>
+<area shape="rect" id="node6" href="$classStatusModule.html" title="The Status Module manages information about the current state of the robot. It holds the robot&#39;s stat..." alt="" coords="335,747,508,883"/>
+<area shape="rect" id="node7" href="$classRecoveryModule.html" title="Predicts the target&#39;s position if the line of sight to the target is lost. Receives target informatio..." alt="" coords="551,907,729,1145"/>
+</map>

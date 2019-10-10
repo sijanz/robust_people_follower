@@ -1,0 +1,4 @@
+<map id="StatusModule" name="StatusModule">
+<area shape="rect" id="node1" title="The Status Module manages information about the current state of the robot. It holds the robot&#39;s stat..." alt="" coords="5,292,179,428"/>
+<area shape="rect" id="node2" href="$classObject2DSpace.html" title="Represents a base class for objects in a 2&#45;dimensional Euclidean space. Holds information for the pos..." alt="" coords="21,5,163,244"/>
+</map>
