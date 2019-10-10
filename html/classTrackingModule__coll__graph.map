@@ -1,5 +1,0 @@
-<map id="TrackingModule" name="TrackingModule">
-<area shape="rect" id="node1" title="The Tracking Module processes data received from the /body_tracker/skeleton topic and manages a list ..." alt="" coords="16,785,183,980"/>
-<area shape="rect" id="node2" href="$classPerson.html" title=" " alt="" coords="5,293,193,723"/>
-<area shape="rect" id="node3" href="$classObject2DSpace.html" title="Represents a base class for objects in a 2&#45;dimensional Euclidean space. Holds information for the pos..." alt="" coords="29,5,170,244"/>
-</map>
