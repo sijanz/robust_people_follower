@@ -3,6 +3,9 @@
 ## Description
 
 ## Prerequisites
+- Laptop running ROS Kinetic on Ubuntu 16.04 or higher
+- Orbbec Astra Pro camera
+- Turtlebot 2
 
 ## Installation
 
