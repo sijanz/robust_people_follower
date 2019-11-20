@@ -158,6 +158,7 @@ private:
     /** @brief The ROS node handle. Is used to subscribe and publish to ROS topics. */
     ros::NodeHandle m_nh{};
 
+    /** @brief Is set to true if the robot runs into an obstacle. */
     bool m_emergency_stop{};
 
 
@@ -212,6 +213,9 @@ private:
      * ********** HELPER METHODS TO KEEP THE MAIN LOOP CLEAN **********
      */
 
+    /**
+     * @brief Processes the ROS callbacks and sets a new target if available.
+     */
     void processCallbacks();
 
 
