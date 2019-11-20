@@ -73,10 +73,10 @@ void RobustPeopleFollower::runLoop()
     auto loop_rate{ros::Rate{LOOP_FREQUENCY}};
 
     // LOG
-    std::ofstream file{};
-    file.open("/home/simon/log.csv");
-    file << "t,x,y,d,y_d,v,m_v,m_m_v,th,m_th,m_m_th,p_x,p_y,p_v,d_t\n";
-    auto start_time{ros::Time::now().toSec()};
+//    std::ofstream file{};
+//    file.open("/home/simon/log.csv");
+//    file << "t,x,y,d,y_d,v,m_v,m_m_v,th,m_th,m_m_th,p_x,p_y,p_v,d_t\n";
+//    auto start_time{ros::Time::now().toSec()};
 
     while (ros::ok()) {
 
@@ -111,20 +111,20 @@ void RobustPeopleFollower::runLoop()
         debugPrintout();
 
         // LOG
-        auto current_time{ros::Time::now().toSec() - start_time};
-        if (m_status_module.status() == StatusModule::Status::FOLLOWING) {
-            file << current_time << "," << m_tracking_module.target().pose().pose.position.x << ","
-                 << m_tracking_module.target().pose().pose.position.y << ","
-                 << m_tracking_module.target().distance() / 1000 << "," << m_tracking_module.target().yDeviation()
-                 << "," << m_tracking_module.target().velocity() << "," << m_tracking_module.target().meanVelocity()
-                 << "," << m_tracking_module.target().angle()
-                 << "," << m_tracking_module.target().meanAngle() << ",0,0,0," << elapsed_time.count() << "\n";
-        } else if (m_status_module.status() == StatusModule::Status::LOS_LOST
-                   || m_status_module.status() == StatusModule::Status::SEARCHING) {
-            file << current_time << ",0,0,0,0,0,0,0,0," << m_recovery_module.predictedTargetPosition().x << ","
-                 << m_recovery_module.predictedTargetPosition().y << "," << m_recovery_module.predictedVelocity() << ","
-                 << elapsed_time.count() << "\n";
-        }
+//        auto current_time{ros::Time::now().toSec() - start_time};
+//        if (m_status_module.status() == StatusModule::Status::FOLLOWING) {
+//            file << current_time << "," << m_tracking_module.target().pose().pose.position.x << ","
+//                 << m_tracking_module.target().pose().pose.position.y << ","
+//                 << m_tracking_module.target().distance() / 1000 << "," << m_tracking_module.target().yDeviation()
+//                 << "," << m_tracking_module.target().velocity() << "," << m_tracking_module.target().meanVelocity()
+//                 << "," << m_tracking_module.target().angle()
+//                 << "," << m_tracking_module.target().meanAngle() << ",0,0,0," << elapsed_time.count() << "\n";
+//        } else if (m_status_module.status() == StatusModule::Status::LOS_LOST
+//                   || m_status_module.status() == StatusModule::Status::SEARCHING) {
+//            file << current_time << ",0,0,0,0,0,0,0,0," << m_recovery_module.predictedTargetPosition().x << ","
+//                 << m_recovery_module.predictedTargetPosition().y << "," << m_recovery_module.predictedVelocity() << ","
+//                 << elapsed_time.count() << "\n";
+//        }
 
         // delete entries of persons that aren't tracked anymore
         m_tracking_module.managePersonList();
