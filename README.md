@@ -1,15 +1,22 @@
-# A ROS package for robust following of a person
+# A ROS package for the robust following of a person
 
 ## Description
 
 
 ## Prerequisites
-- Laptop running ROS Kinetic on Ubuntu 16.04 or higher
+- Laptop running ROS Kinetic on Ubuntu 16.04 LTS
 - Orbbec Astra Pro camera
 - Turtlebot 2
 
 
 ## Installation
+
+### Turtlebot ROS packages
+In order for the Turtlebot 2 to work with ROS, a few packages have to be installed first.
+```
+sudo apt-get install ros-kinetic-turtlebot ros-kinetic-turtlebot-apps ros-kinetic-turtlebot-interactions ros-kinetic-turtlebot-simulator ros-kinetic-kobuki-ftdi ros-kinetic-ar-track-alvar-msgs
+```
+
 ### CMake
 You maybe already have CMake on your machine. If you don't have it, you need to download it from their homepage at https://cmake.org/download/. When the download is finished, make a new directory and paste the downloaded file in this directory and unzip it.
 ```
@@ -48,7 +55,6 @@ make
 cd Bin/x64-Release
 ./SimpleViewer
 ```
-
 
 ### Orbbec Astra SDK
 Download the Orbbec Astra SDK zip file for your machine from the the Orbbec site: https://orbbec3d.com/develop/.
